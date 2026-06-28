@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oaklands Logic Editor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <div class="title">🌳 Oaklands Logic Editor <small>2D logic circuit simulator</small></div>
+    <button id="runBtn" class="primary">⏸ Pause</button>
+    <button id="clearBtn" class="danger">🗑 Clear All</button>
+    <div class="sep"></div>
+    <span id="tickRateLabel">Tick rate:</span>
+    <select id="rateSelect">
+      <option value="5">5 Hz</option>
+      <option value="10">10 Hz</option>
+      <option value="20" selected>20 Hz</option>
+      <option value="30">30 Hz</option>
+      <option value="60">60 Hz</option>
+    </select>
+    <div class="sep"></div>
+    <button id="zoomOut">−</button>
+    <span id="zoomLabel" style="width:42px; text-align:center; display:inline-block; font-size:12px; color:var(--text-dim);">100%</span>
+    <button id="zoomIn">+</button>
+    <button id="zoomReset">Reset</button>
+    <div class="sep"></div>
+    <span style="font-size:12px;color:var(--text-dim)">Next wire color:</span>
+    <button id="wireColorSwatch" style="width:26px;height:26px;border-radius:50%;padding:0"></button>
+    <div class="spacer"></div>
+    <button id="exportBtn">📋 Export (readable JSON)</button>
+    <button id="saveBtn">💾 Download .json</button>
+    <label class="loadLabel" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;">
+      📂 Load file
+      <input id="loadInput" type="file" accept=".json,application/json" style="display:none">
+    </label>
+    <button id="importPasteBtn">📥 Import from text</button>
+    <button id="helpBtn">❓ Help</button>
+  </div>
+
+  <div id="main">
+    <div id="palette"></div>
+
+    <div id="workspace-wrap">
+      <div id="workspace">
+        <svg id="wireLayer" width="4000" height="3000"></svg>
+      </div>
+    </div>
+
+    <div id="inspector"></div>
+  </div>
+
+  <div id="statusbar">
+    <span id="statTime">Sim time: 0.0s</span>
+    <span>Drag components from the left palette onto the canvas. Drag from a port to another port to connect a wire. Click any ⓘ for exact in-game behavior notes.</span>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- HELP MODAL -->
+<div id="helpModal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <h2>How to use this editor</h2>
+    <p><b>Add components:</b> click any component in the left palette to drop it onto the canvas.</p>
+    <p><b>Wire them together:</b> drag from one port (small square on the side of a component) to another. Outputs are on the right, inputs are on the left.</p>
+    <p><b>Wire priority:</b> the real game allows multiple wires into one input port. This editor supports that too — when a port has 2+ wires, a small numbered badge appears on it. Click the badge to open the <i>Wire Priority</i> list and reorder which wire's signal wins (top of the list always wins, like setting which wire "overrides" the others).</p>
+    <p><b>Run / Pause:</b> the simulation runs continuously by default. Pause it to freeze all signals while you wire things up, then press Run again.</p>
+    <p><b>Interact with inputs:</b> click buttons/switches, drag sliders, use dropdowns — they behave like the real in-game devices (e.g. a Button pulses 10 only while held).</p>
+    <p><b>Inspect a component:</b> click it to see its parameters, live input/output values, and a note on exactly how it matches (or approximates) real in-game behavior.</p>
+    <p><b>Save your work:</b> use <i>Export</i> to get clean, human-readable JSON you can copy/paste or save anywhere, or <i>Download .json</i> to save a file directly. Use <i>Load file</i> or <i>Import from text</i> to bring a circuit back in.</p>
+    <p style="color:var(--text-dim)">Note: a few obscure "Other" category components (lasers, conveyors, ownership manager, etc.) don't have fully documented in-game formulas, so they use a clearly-labeled best-effort approximation — check each component's ⓘ note for details.</p>
+    <div class="row"><button class="primary close-modal">Got it</button></div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div id="exportModal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <h2>Export circuit (human-readable JSON)</h2>
+    <p style="color:var(--text-dim); font-size:13px;">This is your full circuit — every component, its settings, and every wire (with priority order) — as clean, indented JSON. Copy it anywhere, or download it as a file. You can also hand-edit it and re-import.</p>
+    <textarea id="exportTextarea" readonly></textarea>
+    <div class="row">
+      <button id="exportCopyBtn">📋 Copy to clipboard</button>
+      <button id="exportDownloadBtn" class="primary">💾 Download .json</button>
+      <button class="close-modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div id="importModal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <h2>Import circuit from text</h2>
+    <p style="color:var(--text-dim); font-size:13px;">Paste a previously exported JSON circuit below, then click Import. This replaces everything currently on the canvas.</p>
+    <textarea id="importTextarea" placeholder="Paste exported JSON here…"></textarea>
+    <div class="row">
+      <button id="importGoBtn" class="primary">📥 Import</button>
+      <button class="close-modal">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="components.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

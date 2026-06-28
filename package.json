@@ -1,0 +1,12 @@
+{
+  "name": "oaklands-logic-editor",
+  "version": "1.0.0",
+  "description": "A free 2D logic circuit editor/simulator for Roblox Oaklands. Static site - no build step required.",
+  "private": true,
+  "scripts": {
+    "test": "node tests/test_engine.js && node tests/test_dom.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}
