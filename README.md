@@ -20,9 +20,6 @@ Export gives you clean, readable JSON — open it in a text editor and it actual
 
 This was built off the actual Oaklands wiki and verified in-game pricing — not guessed. Every component's info tooltip (the ⓘ icon) tells you straight up whether its behavior is a confirmed match or, for a small number of things that can't really be simulated in a browser (camera feeds, physical laser collision, actual chat messages), the closest reasonable approximation. If something's off, tell me — see contact below.
 
-## Running it
-
-Open `index.html`. That's the whole installation process. No build step, no dependencies, no server. It also runs fine hosted as a static site (GitHub Pages, Netlify, wherever) since it's just HTML/CSS/JS.
 
 ## Files
 
@@ -31,7 +28,7 @@ Open `index.html`. That's the whole installation process. No build step, no depe
 - `components.js` — every component: its ports, price, controls, and simulation logic
 - `engine.js` — the simulation engine (wiring, wire priority, the tick loop)
 - `app.js` — everything UI: palette, canvas, wiring, inspector, export/import
-- `tests/` — automated test scripts, not needed to actually run the site
+
 
 Want to add a component yourself? It's one entry in `components.js` — ports, a price, a `step()` function for the logic, optionally a `control` for an interactive widget. It'll show up in the palette automatically.
 
