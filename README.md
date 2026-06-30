@@ -1,110 +1,40 @@
 # Oaklands Logic Editor
 
-A free, browser-based **2D logic circuit editor and simulator** for the
-Roblox game **Oaklands**. Place every component from the in-game *Logic*
-category (Alan's AutoLogistics), wire them together exactly like in the
-game — including support for **multiple wires per input port with
-configurable priority** — and watch the circuit simulate live.
+A 2D logic editor for Oaklands. Drop down every Logic component sold at Alan's AutoLogistics, wire them up like you would in-game, and actually watch the circuit run — live signals, real wire priority, the works.
 
-No installation, no build step, no backend. It's three plain JS files and
-some HTML/CSS — open `index.html` in a browser, or host it for free on
-GitHub Pages (instructions below).
+Made by **Glazix**.
 
-## Features
+## What it does
 
-- **Every Logic-category component** from the Oaklands Wiki: all 10 Inputs,
-  8 Logic Gates, 9 Processors, 6 Structures/Outputs, 10 "Other" components,
-  and the 3 logic-interactive Conveyors (47 components total).
-- **Accurate simulation** for every gate and most processors, based directly
-  on the Oaklands Wiki (Fandom + Miraheze) — e.g. the AND Gate only outputs
-  when both inputs are equal *and* greater than 0; the Calculator outputs
-  nothing on a negative result or divide-by-zero, exactly like in-game.
-- **Wire priority**: just like the real game, you can run multiple wires
-  into one input port. This editor shows a small badge on any port with 2+
-  wires — click it to open the **Wire Priority** list and drag/reorder which
-  wire's signal wins.
-- **Live, interactive controls** on every input/processor node — click
-  buttons, flip switches, drag sliders, use the joystick pad — exactly like
-  interacting with the real devices in-game.
-- **Human-readable export/import** — export your circuit as clean, indented
-  JSON (copy to clipboard or download a `.json` file) and re-import it
-  later, on another computer, or after editing it by hand.
-- Adjustable simulation speed, zoom, an inspector panel with live
-  input/output values for every component, and an in-app Help guide.
+Everything you'd build with Logic in Oaklands, but on a flat canvas instead of in the world. Buttons, switches, all the gates, the Memory Cell, Incrementer, Calculator, Speaker, Donator, Interactor, lasers, conveyors — the full lineup, 56 components. Each one runs the actual in-game math: AND only fires when both inputs match and are above 0, the Calculator drops negative results instead of outputting them, the Memory Cell latches once and ignores further writes until you reset it, the Incrementer adds input÷10 per pulse. If two of those "event" wires land on a node in the same tick (say, DATA and RESET on a Memory Cell both firing off one button), whichever wire you connected first gets processed first — same as the real execution order.
 
-## Accuracy notes
+Wiring works the way you'd expect on a Mac trackpad: click a port, click the other port, done. Dragging works too if you prefer it. You can drop anchor points on a wire to route it around other components, pick the exact wire color, and if a port has more than one wire going into it, a little badge shows up so you can reorder which one actually wins.
 
-Every component has an **ⓘ info icon** (in the palette and on each node)
-explaining exactly how it behaves and whether that's a direct match to the
-wiki or a clearly-labeled best-effort approximation. The core Logic Gates,
-the Calculator, the Relay, the Sustainer, the XAND/XNOR behavior, and wire
-priority are all modeled directly from documented in-game behavior. A
-handful of obscure "Other" category items (lasers, conveyors, ownership
-manager, commander chat-matching, lock code entry) don't have a fully
-documented formula on the wiki, so they're simulated with a reasonable
-manual-trigger approximation — check the info note on each if you're not
-sure.
+Multi-select with a drag box or shift-click, move a whole group at once, duplicate it (wiring between the duplicated parts comes along for the ride), delete with a right-click or the Delete key.
 
-## Running it locally
+Every port tells you what it actually does when you hover it — not just "A" or "IN", but what that specific input changes for that specific component. Every component shows its real Alan's AutoLogistics price, and there's a running cost summary for your whole build.
 
-Just open `index.html` in any modern browser. That's it — everything runs
-client-side.
+Export gives you clean, readable JSON — open it in a text editor and it actually makes sense, not a wall of minified garbage. Paste it back in, or load a downloaded file, and you're back where you left off.
 
-## Hosting it for free on GitHub Pages
+## Accuracy
 
-1. Create a new repository on GitHub (e.g. `oaklands-logic-editor`).
-2. Upload these files to the **root** of the repository:
-   - `index.html`
-   - `style.css`
-   - `components.js`
-   - `engine.js`
-   - `app.js`
-   (the `tests/` folder is optional — it's only used for development, not
-   needed for the live site, but doesn't hurt to include it.)
-3. In your repository, go to **Settings → Pages**.
-4. Under **Build and deployment → Source**, choose **Deploy from a branch**.
-5. Under **Branch**, choose `main` (or `master`) and folder `/ (root)`,
-   then click **Save**.
-6. Wait a minute or two, then refresh the Pages settings tab — GitHub will
-   show you the live URL, something like:
-   `https://your-username.github.io/oaklands-logic-editor/`
+This was built off the actual Oaklands wiki and verified in-game pricing — not guessed. Every component's info tooltip (the ⓘ icon) tells you straight up whether its behavior is a confirmed match or, for a small number of things that can't really be simulated in a browser (camera feeds, physical laser collision, actual chat messages), the closest reasonable approximation. If something's off, tell me — see contact below.
 
-That's the whole process — no build step, no GitHub Actions needed, because
-this is a static site.
+## Running it
 
-### Alternative: drag-and-drop upload
+Open `index.html`. That's the whole installation process. No build step, no dependencies, no server. It also runs fine hosted as a static site (GitHub Pages, Netlify, wherever) since it's just HTML/CSS/JS.
 
-If you don't want to use git, you can also create the repository on
-GitHub.com, then use the **"uploading an existing file"** link on the empty
-repo page to drag and drop all the files directly from your computer, and
-then follow steps 3–6 above.
+## Files
 
-## Project structure
+- `index.html` — the page itself
+- `style.css` — all the styling
+- `components.js` — every component: its ports, price, controls, and simulation logic
+- `engine.js` — the simulation engine (wiring, wire priority, the tick loop)
+- `app.js` — everything UI: palette, canvas, wiring, inspector, export/import
+- `tests/` — automated test scripts, not needed to actually run the site
 
-```
-index.html      Page shell: toolbar, palette container, canvas, inspector, modals
-style.css       All styling (dark theme, node/port/wire styling, modals)
-components.js   The component registry — every component's ports, params,
-                interactive control widget, and simulation step() function
-engine.js       The Graph class: nodes, wires, wire-priority resolution,
-                and the per-tick simulation loop
-app.js          UI layer: palette, drag/drop, wire drawing, the wire-priority
-                popup, the inspector panel, the toolbar, and export/import
-tests/          Node-based test scripts (engine logic + full DOM smoke test)
-                used during development — not required to run the site.
-```
+Want to add a component yourself? It's one entry in `components.js` — ports, a price, a `step()` function for the logic, optionally a `control` for an interactive widget. It'll show up in the palette automatically.
 
-## Editing / extending
+## Questions, bugs, requests
 
-Because everything is in three small, readable JS files with no build
-step, adding a new component is just adding one entry to the
-`COMPONENT_TYPES` object in `components.js` — give it ports, a simulation
-`step()` function, and (optionally) an interactive `control` widget — and
-it automatically shows up in the palette, can be wired up, saved, and
-loaded.
-
-## License
-
-Provided as-is for the Oaklands community. Oaklands is a trademark of its
-respective developers; this is an unofficial, fan-made educational tool and
-is not affiliated with or endorsed by the game's developers.
+Find me on Discord: **_glazix**. Happy to fix what's wrong or add what's missing.

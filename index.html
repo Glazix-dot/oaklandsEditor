@@ -10,7 +10,7 @@
 <div id="app">
 
   <div id="topbar">
-    <div class="title">🌳 Oaklands Logic Editor <small>2D logic circuit simulator</small></div>
+    <div class="title">🌳 Oaklands Logic Editor <small>2D logic circuit simulator · by Glazix</small></div>
     <button id="runBtn" class="primary">⏸ Pause</button>
     <button id="clearBtn" class="danger">🗑 Clear All</button>
     <div class="sep"></div>
@@ -28,8 +28,12 @@
     <button id="zoomIn">+</button>
     <button id="zoomReset">Reset</button>
     <div class="sep"></div>
-    <span style="font-size:12px;color:var(--text-dim)">Next wire color:</span>
-    <button id="wireColorSwatch" style="width:26px;height:26px;border-radius:50%;padding:0"></button>
+    <span style="font-size:12px;color:var(--text-dim)">Wire color:</span>
+    <input id="wireColorPicker" type="color" value="#e0a030" title="Pick the exact color for the next wire you draw">
+    <div class="sep"></div>
+    <button id="duplicateBtn" title="Duplicate selected (Ctrl/Cmd+D)">⧉ Duplicate</button>
+    <button id="deleteSelBtn" class="danger" title="Delete selected (Del)">✕ Delete</button>
+    <button id="costBtn">💰 Cost Summary</button>
     <div class="spacer"></div>
     <button id="exportBtn">📋 Export (readable JSON)</button>
     <button id="saveBtn">💾 Download .json</button>
@@ -55,7 +59,9 @@
 
   <div id="statusbar">
     <span id="statTime">Sim time: 0.0s</span>
-    <span>Drag components from the left palette onto the canvas. Drag from a port to another port to connect a wire. Click any ⓘ for exact in-game behavior notes.</span>
+    <span>Click a port, then click another to wire them (or drag, if you prefer). Shift-click or drag a box to select multiple components.</span>
+    <div class="spacer"></div>
+    <span>Made by Glazix — Discord: <b>_glazix</b></span>
   </div>
 </div>
 
@@ -66,22 +72,50 @@
   <div class="modal">
     <h2>How to use this editor</h2>
     <p><b>Add components:</b> click any component in the left palette to drop it onto the canvas.</p>
-    <p><b>Wire them together:</b> drag from one port (small square on the side of a component) to another. Outputs are on the right, inputs are on the left.</p>
-    <p><b>Wire priority:</b> the real game allows multiple wires into one input port. This editor supports that too — when a port has 2+ wires, a small numbered badge appears on it. Click the badge to open the <i>Wire Priority</i> list and reorder which wire's signal wins (top of the list always wins, like setting which wire "overrides" the others).</p>
-    <p><b>Run / Pause:</b> the simulation runs continuously by default. Pause it to freeze all signals while you wire things up, then press Run again.</p>
-    <p><b>Interact with inputs:</b> click buttons/switches, drag sliders, use dropdowns — they behave like the real in-game devices (e.g. a Button pulses 10 only while held).</p>
-    <p><b>Inspect a component:</b> click it to see its parameters, live input/output values, and a note on exactly how it matches (or approximates) real in-game behavior.</p>
-    <p><b>Save your work:</b> use <i>Export</i> to get clean, human-readable JSON you can copy/paste or save anywhere, or <i>Download .json</i> to save a file directly. Use <i>Load file</i> or <i>Import from text</i> to bring a circuit back in.</p>
-    <p style="color:var(--text-dim)">Note: a few obscure "Other" category components (lasers, conveyors, ownership manager, etc.) don't have fully documented in-game formulas, so they use a clearly-labeled best-effort approximation — check each component's ⓘ note for details.</p>
+    <p><b>Wire them together — two ways:</b> click once on a port, then click on another port to connect them (this is the most reliable method on a Mac trackpad, no dragging needed). You can also just drag from one port to another the classic way. Outputs are on the right, inputs are on the left. Press Esc to cancel a pending wire.</p>
+    <p><b>Reroute a wire:</b> double-click anywhere along a wire to drop an anchor point, then drag that anchor to route the cable around other components. Right-click (or double-click) an anchor to remove it.</p>
+    <p><b>Wire color:</b> pick the exact color for your next wire with the color swatch in the toolbar — works exactly like the in-game Creative Wiring color picker.</p>
+    <p><b>Delete a wire:</b> right-click it, or click to select it and press Delete.</p>
+    <p><b>Select multiple components:</b> drag a box on empty canvas, or Shift-click components one at a time. Drag any selected component to move the whole group together. Use <i>Duplicate</i> (or Ctrl/Cmd+D) to clone the selection — internal wiring between duplicated components is preserved. Use <i>Delete</i> to remove the whole selection at once.</p>
+    <p><b>Wire priority:</b> the real game allows multiple wires into one input port. When a port has 2+ wires, a small numbered badge appears on it — click the badge to reorder which wire's <i>value</i> wins.</p>
+    <p><b>Execution order:</b> for components with more than one "event" input (like the Memory Cell's WRITE/RESET, or the Incrementor's ADD/RESET), if two signals arrive on the same tick, whichever wire was connected <i>first</i> is processed first — exactly like in-game. So wire order matters, not just port choice.</p>
+    <p><b>Hover any port</b> to see exactly what it does, not just its short label.</p>
+    <p><b>Run / Pause:</b> the simulation runs continuously by default. Pause it to freeze all signals while you wire things up.</p>
+    <p><b>Cost Summary:</b> opens a full breakdown of every component on the canvas with its confirmed in-game price from <b>Alan's AutoLogistics</b>, individual subtotals, and a running grand total. Items without a confirmed price are listed as "n/a" and excluded from the total.</p>
+    <p><b>Save your work:</b> use <i>Export</i> for clean, human-readable JSON you can copy/paste or save anywhere, or <i>Download .json</i> for a file. Use <i>Load file</i> or <i>Import from text</i> to bring a circuit back in.</p>
+    <p style="color:var(--text-dim)">A few "Other" category components (lasers, ownership manager, etc.) are based on the most detailed information available but are still simplified for the editor — check each component's ⓘ note for specifics.</p>
+    <p style="border-top:1px solid var(--border); padding-top:10px; color:var(--text-dim)">Made by <b style="color:var(--accent2)">Glazix</b>. Questions, bug reports, or feature requests? Find me on Discord: <b>_glazix</b>.</p>
     <div class="row"><button class="primary close-modal">Got it</button></div>
   </div>
 </div>
+
+<!-- COST SUMMARY MODAL -->
+<div id="costModal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="width:520px">
+    <h2>💰 Cost Summary</h2>
+    <p id="costNote" style="display:none; color:var(--text-dim); font-size:12px;">
+      Items marked "n/a" don't have a confirmed in-game price yet, so they're left out of the total below.
+    </p>
+    <div class="cost-table">
+      <div class="cost-row cost-header">
+        <span class="cost-name">Component</span><span class="cost-qty">Qty</span><span class="cost-unit">Unit price</span><span class="cost-subtotal">Subtotal</span>
+      </div>
+      <div id="costBody"></div>
+    </div>
+    <div class="cost-grand-row">
+      <span>Total — every item here is sold at <b>Alan's AutoLogistics</b></span>
+      <span id="costTotal">$0</span>
+    </div>
+    <div class="row"><button class="primary close-modal">Close</button></div>
+  </div>
+</div>
+
 
 <!-- EXPORT MODAL -->
 <div id="exportModal" class="modal-backdrop" style="display:none">
   <div class="modal">
     <h2>Export circuit (human-readable JSON)</h2>
-    <p style="color:var(--text-dim); font-size:13px;">This is your full circuit — every component, its settings, and every wire (with priority order) — as clean, indented JSON. Copy it anywhere, or download it as a file. You can also hand-edit it and re-import.</p>
+    <p style="color:var(--text-dim); font-size:13px;">This is your full circuit — every component, its settings, and every wire (with priority order and routing) — as clean, indented JSON. Copy it anywhere, or download it as a file. You can also hand-edit it and re-import.</p>
     <textarea id="exportTextarea" readonly></textarea>
     <div class="row">
       <button id="exportCopyBtn">📋 Copy to clipboard</button>

@@ -1,37 +1,38 @@
 /* =========================================================================
    OAKLANDS LOGIC EDITOR — COMPONENT REGISTRY
    =========================================================================
-   Every component type from the in-game "Logic" category is defined here:
-   its ports (inputs/outputs), configurable parameters, the on-node control
+   Every component sold at Alan's AutoLogistics is defined here: its ports
+   (inputs/outputs), price, configurable parameters, the on-node control
    widget (button/slider/dropdown/etc), and its simulation step() function.
 
-   Behaviors are modeled directly off the Oaklands Wiki (Fandom + Miraheze)
-   where documented. Where the wiki doesn't give an exact formula (a few of
-   the more obscure "Other" category items), a clearly-labeled best-effort
-   approximation is used — each component has a `note` shown in its info
-   tooltip explaining exactly what is real vs. approximated.
+   Prices and behaviors are based on the in-game item descriptions. Each
+   component has a `note` (shown in its info tooltip) explaining exactly
+   how it works, and flagging anywhere this tool has to approximate
+   something that can't be represented in a 2D web simulator (e.g. physical
+   laser hit-detection, Roblox image rendering, security camera feeds).
    ========================================================================= */
+
+// Where every component on this page is actually bought in-game.
+const SHOP_INFO = {
+  name: "Alan's AutoLogistics",
+  location: 'Finlay Island, near the entrance to the Acid Wastes',
+};
 
 const PORT_W = 14; // visual port square size
 
-// Helper: clamp
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // ---------------------------------------------------------------------
-// CATEGORIES (match the wiki's grouping, used for palette sections)
+// CATEGORIES (palette sections)
 // ---------------------------------------------------------------------
 const CATEGORIES = [
-  { id: 'inputs', label: 'Inputs' },
+  { id: 'inputs', label: 'Inputs & Sensors' },
   { id: 'gates', label: 'Logic Gates' },
   { id: 'processors', label: 'Processors' },
   { id: 'structures', label: 'Structures (Outputs)' },
-  { id: 'other', label: 'Other' },
+  { id: 'other', label: 'Other Devices' },
   { id: 'conveyors', label: 'Conveyors' },
 ];
-
-/* A port definition: { id, label, dir: 'in'|'out' }
-   Vertical position is auto-assigned (evenly spaced) based on how many
-   in/out ports a node has, so we don't need to hardcode y-offsets. */
 
 function ports(...defs) {
   return defs.map((d) => ({ id: d[0], label: d[1], dir: d[2] }));
@@ -44,19 +45,21 @@ const COMPONENT_TYPES = {
 
   // ----------------------------------------------------------------- INPUTS
   button: {
-    name: 'Button', category: 'inputs', color: '#d9534f', w: 110, h: 70,
-    note: 'Emits a momentary signal of 10 while held — matches the real Button, which pulses 10 on interact.',
+    name: 'Button', category: 'inputs', color: '#d9534f', w: 120, h: 80, price: 140,
+    note: 'Activates an output of 10.0 for exactly 1 second when pressed — the pulse runs its full second even if you release early.',
     ports: ports(['out', 'OUT', 'out']),
     control: { type: 'momentary', label: 'PRESS' },
-    init: () => ({ pressed: false }),
-    step(state, ins, params) {
-      return { out: state.pressed ? 10 : 0 };
+    init: () => ({ pressed: false, wasPressed: false, pulseUntil: 0 }),
+    step(state, ins, params, t) {
+      if (state.pressed && !state.wasPressed) state.pulseUntil = t + 1.0;
+      state.wasPressed = state.pressed;
+      return { out: t < state.pulseUntil ? 10 : 0 };
     },
   },
 
   switch_: {
-    name: 'Switch', category: 'inputs', color: '#d9534f', w: 110, h: 70,
-    note: 'Toggles between 0 and 10, exactly like the in-game Switch.',
+    name: 'Switch', category: 'inputs', color: '#d9534f', w: 110, h: 80, price: 140,
+    note: 'Toggles between an output of 0.0 and 10.0.',
     ports: ports(['out', 'OUT', 'out']),
     control: { type: 'toggle', label: 'ON/OFF' },
     init: () => ({ on: false }),
@@ -64,8 +67,8 @@ const COMPONENT_TYPES = {
   },
 
   pressurePad: {
-    name: 'Pressure Pad', category: 'inputs', color: '#d9534f', w: 120, h: 70,
-    note: 'Outputs 10 while "weight" is being applied (held down), 0 when released — same as standing on the pad in-game.',
+    name: 'Pressure Pad', category: 'inputs', color: '#d9534f', w: 130, h: 80, price: 200,
+    note: 'Activates an output of 10.0 while a player or object is standing on it, 0 once they step off.',
     ports: ports(['out', 'OUT', 'out']),
     control: { type: 'momentary', label: 'STEP ON' },
     init: () => ({ pressed: false }),
@@ -73,8 +76,8 @@ const COMPONENT_TYPES = {
   },
 
   slider: {
-    name: 'Slider', category: 'inputs', color: '#d9534f', w: 150, h: 80,
-    note: 'Continuous 0–10 output, identical range to the in-game Slider.',
+    name: 'Slider', category: 'inputs', color: '#d9534f', w: 150, h: 90, price: 220,
+    note: 'Outputs a signal from 0.0\u201310.0 depending on the slider\u2019s position.',
     ports: ports(['out', 'OUT', 'out']),
     control: { type: 'slider', min: 0, max: 10, step: 0.1 },
     init: () => ({ value: 0 }),
@@ -82,80 +85,81 @@ const COMPONENT_TYPES = {
   },
 
   joystick: {
-    name: 'Joystick', category: 'inputs', color: '#d9534f', w: 150, h: 110,
-    note: 'Two independent axes, each −10 to 10, matching the in-game dual-axis Joystick.',
-    ports: ports(['outX', 'X', 'out'], ['outY', 'Y', 'out']),
-    control: { type: 'joystick2d', min: -10, max: 10 },
+    name: 'Joystick', category: 'inputs', color: '#d9534f', w: 160, h: 140, price: 1200,
+    note: 'Has four separate output signals (Forward / Back / Left / Right), each going up to 10.0 depending on how far the stick is pushed toward that direction.',
+    ports: ports(['fwd', 'FORWARD', 'out'], ['back', 'BACK', 'out'], ['left', 'LEFT', 'out'], ['right', 'RIGHT', 'out']),
+    control: { type: 'joystick2d', min: -1, max: 1 },
     init: () => ({ x: 0, y: 0 }),
-    step(state) { return { outX: state.x, outY: state.y }; },
-  },
-
-  lock: {
-    name: 'Lock', category: 'inputs', color: '#d9534f', w: 140, h: 90,
-    note: 'Outputs 10 only while unlocked with the correct code. Code-entry minigame is simplified to a text match.',
-    ports: ports(['out', 'OUT', 'out']),
-    params: [{ key: 'code', label: 'Code', type: 'text', default: '1234' }],
-    control: { type: 'lockpad' },
-    init: () => ({ unlocked: false, entry: '' }),
-    step(state) { return { out: state.unlocked ? 10 : 0 }; },
-  },
-
-  daylightSensor: {
-    name: 'Daylight Sensor', category: 'inputs', color: '#d9534f', w: 150, h: 90,
-    note: 'Outputs a value based on time-of-day (0 at midnight, 10 at noon), like the real Daylight Sensor.',
-    ports: ports(['out', 'OUT', 'out']),
-    control: { type: 'slider', min: 0, max: 24, step: 0.25, label: 'Time of day (h)' },
-    init: () => ({ value: 12 }),
     step(state) {
-      const h = state.value;
-      const v = Math.max(0, Math.sin(((h - 6) / 24) * Math.PI * 2 * -1 + Math.PI / 2)) * 10;
-      // simple smooth day curve peaking at noon, 0 at night
-      const curve = Math.max(0, Math.cos(((h - 12) / 24) * Math.PI * 2)) * 10;
-      return { out: Math.round(curve * 100) / 100 };
+      const x = state.x || 0, y = state.y || 0;
+      return {
+        fwd: Math.max(0, -y) * 10, back: Math.max(0, y) * 10,
+        left: Math.max(0, -x) * 10, right: Math.max(0, x) * 10,
+      };
     },
   },
 
-  proximitySensor: {
-    name: 'Proximity Sensor', category: 'inputs', color: '#d9534f', w: 150, h: 80,
-    note: 'Outputs 10 when a player is detected nearby. Detection is simulated with a manual toggle.',
+  lock: {
+    name: 'Lock', category: 'inputs', color: '#d9534f', w: 140, h: 90, price: 430,
+    note: 'A structure that comes with a key: outputs 10.0 when the lock is turned. The signal can stay activated even if the key is removed while it\u2019s turned.',
     ports: ports(['out', 'OUT', 'out']),
-    control: { type: 'toggle', label: 'PLAYER NEAR' },
+    control: { type: 'toggle', label: 'TURN KEY' },
     init: () => ({ on: false }),
     step(state) { return { out: state.on ? 10 : 0 }; },
   },
 
-  weatherSensor: {
-    name: 'Weather Sensor', category: 'inputs', color: '#d9534f', w: 160, h: 90,
-    note: 'Emits different signal scales per weather type, like the in-game sensor (values are an approximation of relative intensity).',
+  daylightSensor: {
+    name: 'Daylight Sensor', category: 'inputs', color: '#d9534f', w: 160, h: 100, price: 320,
+    note: 'Outputs a number from 0 up to (but not including) 24, matching the current in-game time of day.',
+    ports: ports(['out', 'OUT', 'out']),
+    control: { type: 'slider', min: 0, max: 23.99, step: 0.1, label: 'Time of day (h)' },
+    init: () => ({ value: 12 }),
+    step(state) { return { out: Math.round(state.value * 100) / 100 }; },
+  },
+
+  proximitySensor: {
+    name: 'Proximity Sensor', category: 'inputs', color: '#d9534f', w: 170, h: 100, price: 600,
+    note: 'Outputs a signal if a player is within 15 studs: 10.0 for the property owner, 5.0 for a trusted player, 1.0 for an untrusted player.',
     ports: ports(['out', 'OUT', 'out']),
     control: {
-      type: 'select', label: 'Weather',
-      options: [['clear', 'Clear (0)'], ['cloudy', 'Cloudy (2)'], ['rain', 'Rain (5)'], ['storm', 'Storm (8)'], ['snow', 'Snow (10)']],
+      type: 'select', label: 'Nearby player',
+      options: [['none', 'Nobody nearby (0)'], ['owner', 'Owner (10)'], ['trusted', 'Trusted (5)'], ['untrusted', 'Untrusted (1)']],
     },
-    init: () => ({ value: 'clear' }),
+    init: () => ({ value: 'none' }),
     step(state) {
-      const map = { clear: 0, cloudy: 2, rain: 5, storm: 8, snow: 10 };
+      const map = { none: 0, owner: 10, trusted: 5, untrusted: 1 };
       return { out: map[state.value] ?? 0 };
     },
   },
 
+  weatherSensor: {
+    name: 'Weather Sensor', category: 'inputs', color: '#d9534f', w: 170, h: 100, price: 350,
+    note: 'Outputs a signal from 1\u20136: 1 sunny, 2 cloudy, 3 rain, 4 thunderstorm, 5 aurora borealis, 6 for the rare falling star event.',
+    ports: ports(['out', 'OUT', 'out']),
+    control: {
+      type: 'select', label: 'Weather',
+      options: [['1', 'Sunny (1)'], ['2', 'Cloudy (2)'], ['3', 'Rain (3)'], ['4', 'Thunderstorm (4)'], ['5', 'Aurora Borealis (5)'], ['6', 'Falling Star (6)']],
+    },
+    init: () => ({ value: '1' }),
+    step(state) { return { out: parseInt(state.value, 10) || 1 }; },
+  },
+
   commander: {
-    name: 'Commander', category: 'inputs', color: '#d9534f', w: 170, h: 110,
-    note: 'Emits 10 (owner) or 1 (other player) for ~0.5s when the assigned phrase is "chatted". Simplified to a manual trigger button + phrase field.',
+    name: 'Commander', category: 'inputs', color: '#d9534f', w: 180, h: 120, price: 735,
+    note: 'Also called the Chat Commander: activates when the assigned phrase appears anywhere in a chat message. Outputs 10.0 if the owner said it, 1.0 if another player said it. A momentary pulse, returning to 0 about 0.5s later.',
     ports: ports(['out', 'OUT', 'out']),
     params: [{ key: 'phrase', label: 'Phrase', type: 'text', default: 'open' }],
     control: { type: 'commanderTrigger' },
     init: () => ({ pulseUntil: 0, pulseValue: 0 }),
     step(state, ins, params, t) {
-      const active = t < state.pulseUntil;
-      return { out: active ? state.pulseValue : 0 };
+      return { out: t < state.pulseUntil ? state.pulseValue : 0 };
     },
   },
 
   // ------------------------------------------------------------ LOGIC GATES
   andGate: {
-    name: 'AND Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90,
-    note: 'Outputs the input value only if both inputs are equal AND greater than 0 — exact in-game behavior.',
+    name: 'AND Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
+    note: 'Activates an output of the two inputs\u2019 shared value when they are greater than 0.0 and equal to each other.',
     ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
       const { in1 = 0, in2 = 0 } = ins;
@@ -163,19 +167,36 @@ const COMPONENT_TYPES = {
     },
   },
 
+  notGate: {
+    name: 'NOT Gate', category: 'gates', color: '#5bc0de', w: 110, h: 80, price: 120,
+    note: 'Activates an output of 0.0 when the input is greater than 0.0; otherwise outputs 10.0.',
+    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
+    step(state, ins) { return { out: (ins.in || 0) > 0 ? 0 : 10 }; },
+  },
+
   orGate: {
-    name: 'OR Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90,
-    note: 'Outputs the highest of the two inputs if at least one is greater than 0 — exact in-game behavior.',
+    name: 'OR Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
+    note: 'Activates the highest output of the two inputs.',
     ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
       const { in1 = 0, in2 = 0 } = ins;
-      return { out: (in1 > 0 || in2 > 0) ? Math.max(in1, in2) : 0 };
+      return { out: Math.max(in1, in2) };
+    },
+  },
+
+  xorGate: {
+    name: 'XOR Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
+    note: 'Outputs 10.0 when exactly one of the two inputs is active (greater than 0), matching a standard binary XOR truth table.',
+    ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
+    step(state, ins) {
+      const a = (ins.in1 || 0) > 0, b = (ins.in2 || 0) > 0;
+      return { out: (a !== b) ? 10 : 0 };
     },
   },
 
   xandGate: {
-    name: 'XAND Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90,
-    note: 'XNOR behavior: equal inputs of 0 → 10; equal nonzero inputs → that value; unequal → 0. Matches wiki pseudocode exactly.',
+    name: 'XAND Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
+    note: 'Similar to the AND Gate, but it also outputs 10.0 when both inputs are equal to 0.0 (an AND Gate + NOT Gate combined).',
     ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
       const { in1 = 0, in2 = 0 } = ins;
@@ -184,65 +205,45 @@ const COMPONENT_TYPES = {
     },
   },
 
-  xorGate: {
-    name: 'XOR Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90,
-    note: 'Outputs 10 when exactly one input has a signal (>0), otherwise 0 — matches the in-game binary XOR description.',
-    ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
-    step(state, ins) {
-      const a = (ins.in1 || 0) > 0, b = (ins.in2 || 0) > 0;
-      return { out: (a !== b) ? 10 : 0 };
-    },
-  },
-
-  notGate: {
-    name: 'NOT Gate', category: 'gates', color: '#5bc0de', w: 110, h: 80,
-    note: 'Outputs 10 when input is 0, and 0 when input is greater than 0 — exact in-game behavior.',
-    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
-    step(state, ins) { return { out: (ins.in || 0) > 0 ? 0 : 10 }; },
-  },
-
   greaterThanGate: {
-    name: 'Greater Than Gate', category: 'gates', color: '#5bc0de', w: 130, h: 90,
-    note: 'Outputs 10 if input A > input B, else 0. (Comparator — exact direction per-wiki name; magnitude not specified so a fixed 10 pulse is used.)',
+    name: 'Greater Than Gate', category: 'gates', color: '#5bc0de', w: 140, h: 90, price: 270,
+    note: 'Outputs the left (A) signal\u2019s value if it is greater than the right (B) signal; otherwise outputs 0.',
     ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
       const { in1 = 0, in2 = 0 } = ins;
-      return { out: in1 > in2 ? 10 : 0 };
+      return { out: in1 > in2 ? in1 : 0 };
     },
   },
 
   binaryInput: {
-    name: 'Binary Input', category: 'gates', color: '#5bc0de', w: 200, h: 110,
-    note: '8 toggle bits combine into a single decimal output (0–255), like the in-game Binary Input panel.',
-    ports: ports(['out', 'OUT', 'out']),
-    control: { type: 'bits', count: 8 },
-    init: () => ({ bits: [0, 0, 0, 0, 0, 0, 0, 0] }),
-    step(state) {
+    name: 'Binary Input', category: 'gates', color: '#5bc0de', w: 190, h: 150, price: 290,
+    note: 'Takes in up to 5 bits over 5 wired inputs (weights 16, 8, 4, 2, 1 left to right) and outputs their sum as a linear signal — e.g. activating the 16 and 4 inputs outputs 20.',
+    ports: ports(['b16', '16', 'in'], ['b8', '8', 'in'], ['b4', '4', 'in'], ['b2', '2', 'in'], ['b1', '1', 'in'], ['out', 'OUT', 'out']),
+    step(state, ins) {
+      const weights = { b16: 16, b8: 8, b4: 4, b2: 2, b1: 1 };
       let v = 0;
-      for (let i = 0; i < state.bits.length; i++) v += state.bits[i] ? Math.pow(2, i) : 0;
+      Object.keys(weights).forEach((k) => { if ((ins[k] || 0) > 0) v += weights[k]; });
       return { out: v };
     },
   },
 
   binaryOutput: {
-    name: 'Binary Output', category: 'gates', color: '#5bc0de', w: 200, h: 110,
-    note: 'Decimal input is converted to its 8-bit binary representation and shown as lamps, like the in-game Binary Output.',
-    ports: ports(['in', 'IN', 'in']),
-    control: { type: 'bitsDisplay', count: 8 },
+    name: 'Binary Output', category: 'gates', color: '#5bc0de', w: 190, h: 150, price: 290,
+    note: 'Takes in a linear signal and outputs it as up to 5 bits (weights 1, 2, 4, 8, 16 left to right) — e.g. an input of 10 activates the 2 and 8 outputs.',
+    ports: ports(['in', 'IN', 'in'], ['b1', '1', 'out'], ['b2', '2', 'out'], ['b4', '4', 'out'], ['b8', '8', 'out'], ['b16', '16', 'out']),
     step(state, ins) {
       const v = Math.max(0, Math.floor(ins.in || 0));
-      const bits = [];
-      for (let i = 0; i < 8; i++) bits.push((v >> i) & 1);
-      return { _display: { bits } };
+      const bitOf = (w) => ((v & w) > 0) ? 10 : 0;
+      return { b1: bitOf(1), b2: bitOf(2), b4: bitOf(4), b8: bitOf(8), b16: bitOf(16) };
     },
   },
 
   // -------------------------------------------------------------- PROCESSORS
   calculator: {
-    name: 'Calculator', category: 'processors', color: '#f0ad4e', w: 150, h: 110,
-    note: 'Performs +, −, ×, ÷, % on the two inputs. Per the wiki: negative results output nothing, and divide-by-zero outputs nothing.',
+    name: 'Calculator', category: 'processors', color: '#f0ad4e', w: 160, h: 120, price: 275,
+    note: 'Applies math to the two inputs (left \u2218 right): Addition, Subtraction, Multiplication, Division, or Exponentiation. There are no negative signals — a negative result, or dividing by zero, emits nothing.',
     ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
-    control: { type: 'select', label: 'Op', options: [['add', '+'], ['sub', '−'], ['mul', '×'], ['div', '÷'], ['mod', '%']] },
+    control: { type: 'select', label: 'Op', options: [['add', '+'], ['sub', '\u2212'], ['mul', '\u00d7'], ['div', '\u00f7'], ['pow', '^']] },
     init: () => ({ value: 'add' }),
     step(state, ins) {
       const a = ins.in1 || 0, b = ins.in2 || 0;
@@ -252,31 +253,51 @@ const COMPONENT_TYPES = {
         case 'sub': r = a - b; break;
         case 'mul': r = a * b; break;
         case 'div': r = b === 0 ? NaN : a / b; break;
-        case 'mod': r = b === 0 ? NaN : a % b; break;
+        case 'pow': r = Math.pow(a, b); break;
         default: r = 0;
       }
-      if (Number.isNaN(r) || r < 0) r = 0;
+      if (!Number.isFinite(r) || r < 0) r = 0;
       return { out: Math.round(r * 1000) / 1000 };
     },
   },
 
   sustainer: {
-    name: 'Sustainer', category: 'processors', color: '#f0ad4e', w: 150, h: 100,
-    note: 'Holds ("sustains") the last received signal for a configurable duration after the input drops, like the in-game Sustainer.',
+    name: 'Sustainer', category: 'processors', color: '#f0ad4e', w: 150, h: 110, price: 260,
+    note: 'Holds an input signal for the configured amount of time after it drops, then releases back to 0.',
     ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
     params: [{ key: 'duration', label: 'Sustain (s)', type: 'number', default: 2, min: 0, max: 180 }],
     init: () => ({ value: 0, releaseAt: 0 }),
-    step(state, ins, params, t, dt) {
+    step(state, ins, params, t) {
       const input = ins.in || 0;
       if (input > 0) { state.value = input; state.releaseAt = t + params.duration; }
-      const out = (t < state.releaseAt) ? state.value : 0;
-      return { out };
+      return { out: (t < state.releaseAt) ? state.value : 0 };
+    },
+  },
+
+  incrementor: {
+    name: 'Incrementer', category: 'processors', color: '#f0ad4e', w: 160, h: 130, price: 275,
+    note: 'The left ADD input increases the stored output value by (input \u00f7 10) every time it pulses, so a normal 10 signal adds exactly 1. The right RESET input clears it back to 0. If both fire on the same tick, whichever wire was connected first is processed first.',
+    ports: ports(['add', 'ADD', 'in'], ['reset', 'RESET', 'in'], ['out', 'OUT', 'out']),
+    init: () => ({ count: 0, wasAdd: false, wasReset: false }),
+    step(state, ins, params, t, dt, globalState, portOrder) {
+      const addActive = (ins.add || 0) > 0;
+      const resetActive = (ins.reset || 0) > 0;
+      const addEdge = addActive && !state.wasAdd;
+      const resetEdge = resetActive && !state.wasReset;
+      const order = (portOrder && portOrder.length) ? portOrder : ['add', 'reset'];
+      order.forEach((portId) => {
+        if (portId === 'reset' && resetEdge) { state.count = 0; }
+        else if (portId === 'add' && addEdge) { state.count += (ins.add || 0) / 10; }
+      });
+      state.wasAdd = addActive;
+      state.wasReset = resetActive;
+      return { out: Math.round(state.count * 1000) / 1000 };
     },
   },
 
   relay: {
-    name: 'Relay', category: 'processors', color: '#f0ad4e', w: 150, h: 100,
-    note: 'Passes the left (signal) input through only while the right (activate) input is greater than 0 — exact in-game behavior.',
+    name: 'Relay', category: 'processors', color: '#f0ad4e', w: 150, h: 100, price: 275,
+    note: 'When the right (ACTIVATE) input is higher than 0.0, the output becomes the left (SIGNAL) input\u2019s value.',
     ports: ports(['signal', 'SIGNAL', 'in'], ['activate', 'ACTIVATE', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
       const sig = ins.signal || 0, act = ins.activate || 0;
@@ -285,8 +306,8 @@ const COMPONENT_TYPES = {
   },
 
   blocker: {
-    name: 'Blocker', category: 'processors', color: '#f0ad4e', w: 150, h: 100,
-    note: 'Approximation: passes the signal through unless the block input is active, in which case output is forced to 0.',
+    name: 'Blocker', category: 'processors', color: '#f0ad4e', w: 150, h: 100, price: 300,
+    note: 'When the right (BLOCK) input is 0.0, the left (SIGNAL) input is passed through to the output.',
     ports: ports(['signal', 'SIGNAL', 'in'], ['block', 'BLOCK', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
       const sig = ins.signal || 0, blk = ins.block || 0;
@@ -295,22 +316,22 @@ const COMPONENT_TYPES = {
   },
 
   zeroTick: {
-    name: 'Zero Tick', category: 'processors', color: '#f0ad4e', w: 150, h: 90,
-    note: 'Outputs a single-tick pulse equal to the input value on a rising edge (0→active), then drops back to 0 even if the input stays high — used to break feedback loops.',
+    name: 'Zero Tick', category: 'processors', color: '#f0ad4e', w: 150, h: 90, price: 87,
+    note: 'Outputs the inputted signal for exactly 0.1 seconds every time it newly becomes active, then drops back to 0 — handy for breaking feedback loops.',
     ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
-    init: () => ({ wasActive: false }),
-    step(state, ins) {
+    init: () => ({ wasActive: false, pulseUntil: 0, pulseValue: 0 }),
+    step(state, ins, params, t) {
       const v = ins.in || 0;
       const active = v > 0;
-      const pulse = active && !state.wasActive;
+      if (active && !state.wasActive) { state.pulseUntil = t + 0.1; state.pulseValue = v; }
       state.wasActive = active;
-      return { out: pulse ? v : 0 };
+      return { out: t < state.pulseUntil ? state.pulseValue : 0 };
     },
   },
 
   numberInterface: {
-    name: 'Number Interface', category: 'processors', color: '#f0ad4e', w: 160, h: 90,
-    note: 'Outputs a constant, manually-assigned numeric signal — no inputs, exactly like the in-game Number Interface.',
+    name: 'Number Interface', category: 'processors', color: '#f0ad4e', w: 170, h: 110, price: 260,
+    note: 'Lets you input large numbers directly, outputting that exact number as a constant signal — no inputs needed.',
     ports: ports(['out', 'OUT', 'out']),
     control: { type: 'number', min: -999999999999, max: 999999999999, step: 1 },
     init: () => ({ value: 10 }),
@@ -318,15 +339,13 @@ const COMPONENT_TYPES = {
   },
 
   delay: {
-    name: 'Delay', category: 'processors', color: '#f0ad4e', w: 150, h: 100,
-    note: 'Delays the input signal by a configurable number of seconds (up to 3 minutes in-game) before it reaches the output.',
+    name: 'Delay', category: 'processors', color: '#f0ad4e', w: 150, h: 110, price: 260,
+    note: 'Outputs the input value again after the configured amount of time has passed.',
     ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
     params: [{ key: 'seconds', label: 'Delay (s)', type: 'number', default: 1, min: 0, max: 180 }],
     init: () => ({ queue: [], lastOut: 0 }),
     step(state, ins, params, t) {
-      // Record the current input value, timestamped to be released `seconds` from now.
       state.queue.push({ t: t + params.seconds, v: ins.in || 0 });
-      // Release (become the output) every entry whose time has come, keeping the latest.
       while (state.queue.length && state.queue[0].t <= t) {
         state.lastOut = state.queue.shift().v;
       }
@@ -334,12 +353,28 @@ const COMPONENT_TYPES = {
     },
   },
 
-  frequencyClock: {
-    name: 'Frequency Clock', category: 'processors', color: '#f0ad4e', w: 160, h: 100,
-    note: 'Alternates output between 0 and 10 at a configurable frequency — a free-running clock pulse generator.',
+  frequency: {
+    name: 'Frequency', category: 'processors', color: '#f0ad4e', w: 160, h: 110, price: 260,
+    note: 'Re-outputs whatever the input currently is, once every set interval of time — a periodic sampler/repeater (different from the free-running Hertz Clock).',
+    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
+    params: [{ key: 'interval', label: 'Interval (s)', type: 'number', default: 1, min: 0.05, max: 180 }],
+    init: () => ({ nextFire: 0, pulseUntil: 0, pulseValue: 0 }),
+    step(state, ins, params, t, dt) {
+      if (t >= state.nextFire) {
+        state.pulseValue = ins.in || 0;
+        state.pulseUntil = t + Math.max(dt, 0.05);
+        state.nextFire = t + Math.max(0.05, params.interval);
+      }
+      return { out: t < state.pulseUntil ? state.pulseValue : 0 };
+    },
+  },
+
+  hertzClock: {
+    name: 'Hertz Clock', category: 'processors', color: '#f0ad4e', w: 170, h: 110, price: 260,
+    note: 'Activates sequentially (alternates 0.0 / 10.0) at the configured frequency in Hertz — a free-running clock, no input needed.',
     ports: ports(['out', 'OUT', 'out']),
     params: [{ key: 'hz', label: 'Frequency (Hz)', type: 'number', default: 1, min: 0.05, max: 20, step: 0.05 }],
-    init: () => ({ }),
+    init: () => ({}),
     step(state, ins, params, t) {
       const period = 1 / Math.max(0.001, params.hz);
       const phase = (t % period) / period;
@@ -348,67 +383,124 @@ const COMPONENT_TYPES = {
   },
 
   randomizer: {
-    name: 'Randomizer', category: 'processors', color: '#f0ad4e', w: 150, h: 100,
-    note: 'Outputs a new random value (0–10) each time it is triggered by a signal on its input (rising edge).',
-    ports: ports(['trig', 'TRIG', 'in'], ['out', 'OUT', 'out']),
+    name: 'Randomizer', category: 'processors', color: '#f0ad4e', w: 150, h: 100, price: 260,
+    note: 'Outputs a random signal between 0 and the input value, every time the input changes to a new positive number.',
+    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
     init: () => ({ wasActive: false, value: 0 }),
     step(state, ins) {
-      const active = (ins.trig || 0) > 0;
-      if (active && !state.wasActive) state.value = Math.round(Math.random() * 1000) / 100;
+      const v = ins.in || 0;
+      const active = v > 0;
+      if (active && !state.wasActive) state.value = Math.round(Math.random() * v * 100) / 100;
       state.wasActive = active;
       return { out: state.value };
     },
   },
 
+  signalLock: {
+    name: 'Signal Lock', category: 'processors', color: '#f0ad4e', w: 160, h: 110, price: 270,
+    note: 'While the right (ENABLE) input is powered, the left (DATA) input is allowed to set the output. If DATA then drops to 0 while ENABLE stays active, the last value remains latched at the output.',
+    ports: ports(['data', 'DATA', 'in'], ['enable', 'ENABLE', 'in'], ['out', 'OUT', 'out']),
+    init: () => ({ stored: 0 }),
+    step(state, ins) {
+      const enabled = (ins.enable || 0) > 0;
+      if (enabled && (ins.data || 0) > 0) state.stored = ins.data;
+      return { out: enabled ? state.stored : 0 };
+    },
+  },
+
+  tFlipFlop: {
+    name: 'T-Flip Flop', category: 'processors', color: '#f0ad4e', w: 150, h: 100, price: 87,
+    note: 'Toggles between an on (10.0) and off (0.0) output, similar to a Switch \u2014 but driven by logic: any input greater than 0.0 flips it.',
+    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
+    init: () => ({ on: false, wasActive: false }),
+    step(state, ins) {
+      const active = (ins.in || 0) > 0;
+      if (active && !state.wasActive) state.on = !state.on;
+      state.wasActive = active;
+      return { out: state.on ? 10 : 0 };
+    },
+  },
+
+  numberSplitter: {
+    name: 'Number Splitter', category: 'processors', color: '#f0ad4e', w: 190, h: 160, price: 290,
+    note: 'An invention by Gustav: splits the input into single digits for each power of ten, with the 5th output catching any remainder beyond the first four digits.',
+    ports: ports(['in', 'IN', 'in'], ['d1', 'ONES', 'out'], ['d2', 'TENS', 'out'], ['d3', 'HUNDREDS', 'out'], ['d4', 'THOUSANDS', 'out'], ['d5', 'EXCESS', 'out']),
+    step(state, ins) {
+      let v = Math.max(0, Math.floor(ins.in || 0));
+      const d1 = v % 10; v = Math.floor(v / 10);
+      const d2 = v % 10; v = Math.floor(v / 10);
+      const d3 = v % 10; v = Math.floor(v / 10);
+      const d4 = v % 10; v = Math.floor(v / 10);
+      return { d1, d2, d3, d4, d5: v };
+    },
+  },
+
+  numberCombiner: {
+    name: 'Number Combiner', category: 'processors', color: '#f0ad4e', w: 190, h: 170, price: 290,
+    note: 'Combines up to 5 inputs into one output, each multiplied by a power-of-ten factor by position: \u00d71, \u00d710, \u00d7100, \u00d71000, \u00d710000.',
+    ports: ports(['in1', '\u00d71', 'in'], ['in2', '\u00d710', 'in'], ['in3', '\u00d7100', 'in'], ['in4', '\u00d71000', 'in'], ['in5', '\u00d710000', 'in'], ['out', 'OUT', 'out']),
+    step(state, ins) {
+      const v = (ins.in1 || 0) * 1 + (ins.in2 || 0) * 10 + (ins.in3 || 0) * 100 + (ins.in4 || 0) * 1000 + (ins.in5 || 0) * 10000;
+      return { out: v };
+    },
+  },
+
   // -------------------------------------------------------------- STRUCTURES
   privacyGlass: {
-    name: 'Privacy Glass', category: 'structures', color: '#9b59b6', w: 140, h: 100,
-    note: 'Becomes opaque (frosted) when the input is greater than 0 — matches in-game toggleable privacy glass.',
+    name: 'Privacy Glass', category: 'structures', color: '#9b59b6', w: 140, h: 100, price: null,
+    note: 'Becomes opaque (frosted) when the input is greater than 0. Also reflects the Red Laser up to 5 times when used together.',
     ports: ports(['in', 'IN', 'in']),
     step(state, ins) { return { _display: { opaque: (ins.in || 0) > 0 } }; },
   },
 
   lcd: {
-    name: 'LCD', category: 'structures', color: '#9b59b6', w: 170, h: 100,
-    note: 'Displays the numeric value of its input signal, like the in-game LCD panel.',
+    name: 'LCD', category: 'structures', color: '#9b59b6', w: 220, h: 110, price: 800,
+    note: 'A resizable array of toggleable lights \u2014 beyond an input of 10.0 the lights cycle through rainbow colors. Approximated here as a 10-light bar graph (a true resizable 2D grid isn\u2019t practical in this 2D tool).',
     ports: ports(['in', 'IN', 'in']),
-    step(state, ins) { return { _display: { text: String(Math.round((ins.in || 0) * 1000) / 1000) } }; },
+    step(state, ins) { return { _display: { value: ins.in || 0 } }; },
+  },
+
+  bulbPoweredLights: {
+    name: 'Bulb Powered Lights', category: 'structures', color: '#9b59b6', w: 220, h: 110, price: 800,
+    note: 'Functionally identical to the LCD \u2014 a resizable array of toggleable lights that cycle rainbow colors past an input of 10.0 \u2014 styled with round bulbs instead of square pixels. Approximated here as a 10-bulb bar graph.',
+    ports: ports(['in', 'IN', 'in']),
+    step(state, ins) { return { _display: { value: ins.in || 0, round: true } }; },
   },
 
   sevenSegment: {
-    name: '7-Segment Display', category: 'structures', color: '#9b59b6', w: 130, h: 110,
-    note: 'Shows a single digit (0–9) based on the input value, mod 10.',
-    ports: ports(['in', 'IN', 'in']),
+    name: '7-Segment Display', category: 'structures', color: '#9b59b6', w: 160, h: 140, price: 700,
+    note: 'Displays a digit from the NUMBER input. The COLOR input tints the display, and the PASSTHROUGH output simply echoes the number input onward (individually addressing every segment is not modeled here).',
+    ports: ports(['number', 'NUMBER', 'in'], ['color', 'COLOR', 'in'], ['through', 'PASSTHROUGH', 'out']),
     step(state, ins) {
-      const v = ((Math.floor(ins.in || 0) % 10) + 10) % 10;
-      return { _display: { digit: v } };
+      const v = ((Math.floor(ins.number || 0) % 10) + 10) % 10;
+      return { through: ins.number || 0, _display: { digit: v, hue: ins.color || 0 } };
     },
   },
 
   fourteenSegment: {
-    name: '14-Segment Display', category: 'structures', color: '#9b59b6', w: 140, h: 110,
-    note: 'Shows an alphanumeric character selected by input value (approximation: cycles through A–Z, 0–9 by value mod 36).',
-    ports: ports(['in', 'IN', 'in']),
+    name: '14-Segment Display', category: 'structures', color: '#9b59b6', w: 170, h: 140, price: 700,
+    note: 'Displays a character from the NUMBER input (cycling A\u2013Z, 0\u20139). The COLOR input tints the display, and the PASSTHROUGH output echoes the number input onward (individually addressing every segment is not modeled here).',
+    ports: ports(['number', 'NUMBER', 'in'], ['color', 'COLOR', 'in'], ['through', 'PASSTHROUGH', 'out']),
     step(state, ins) {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      const idx = ((Math.floor(ins.in || 0) % chars.length) + chars.length) % chars.length;
-      return { _display: { char: chars[idx] } };
+      const idx = ((Math.floor(ins.number || 0) % chars.length) + chars.length) % chars.length;
+      return { through: ins.number || 0, _display: { char: chars[idx], hue: ins.color || 0 } };
     },
   },
 
   electronicBillboard: {
-    name: 'Electronic Billboard', category: 'structures', color: '#9b59b6', w: 220, h: 110,
-    note: 'Displays custom text; lights up when input is greater than 0, like the in-game billboard.',
-    ports: ports(['in', 'IN', 'in']),
-    params: [{ key: 'text', label: 'Text', type: 'text', default: 'OAKLANDS' }],
-    step(state, ins, params) { return { _display: { on: (ins.in || 0) > 0, text: params.text } }; },
+    name: 'Electronic Billboard', category: 'structures', color: '#9b59b6', w: 220, h: 130, price: 800,
+    note: 'Displays an image chosen by a Roblox Image ID fed into its input (typically from a Number Interface). Actually rendering a live Roblox image isn\u2019t possible in this browser tool, so it\u2019s shown as a placeholder frame with the ID.',
+    ports: ports(['in', 'IMAGE ID', 'in']),
+    step(state, ins) { return { _display: { imageId: Math.floor(ins.in || 0) } }; },
   },
 
   musicNote: {
-    name: 'Music Note', category: 'structures', color: '#9b59b6', w: 130, h: 90,
-    note: 'Plays a short tone when triggered (rising edge). Visual-only flash here (no audio synthesis to keep file size minimal).',
+    name: 'Music Note', category: 'structures', color: '#9b59b6', w: 150, h: 110, price: 200,
+    note: 'Plays a different note depending on the input signal; the music type can be changed by interacting with it. Shown here as a visual flash (no audio synthesis, to keep the page lightweight).',
     ports: ports(['in', 'IN', 'in']),
-    init: () => ({ wasActive: false, flashUntil: 0 }),
+    control: { type: 'select', label: 'Music Type', options: [['piano', 'Piano'], ['synth', 'Synth'], ['bells', 'Bells'], ['drum', 'Drum']] },
+    init: () => ({ value: 'piano', wasActive: false, flashUntil: 0 }),
     step(state, ins, params, t) {
       const active = (ins.in || 0) > 0;
       if (active && !state.wasActive) state.flashUntil = t + 0.3;
@@ -417,105 +509,175 @@ const COMPONENT_TYPES = {
     },
   },
 
+  speaker: {
+    name: 'Speaker', category: 'structures', color: '#9b59b6', w: 200, h: 140, price: 850,
+    note: 'Sends a chat message and chat bubble to your friends whenever powered (1-second cooldown). {num} is replaced with the power value; {display_name} is replaced with the name of the user ID provided. RichText is supported in-game.',
+    ports: ports(['in', 'POWER', 'in']),
+    params: [
+      { key: 'message', label: 'Message', type: 'text', default: 'Power is {num}!' },
+      { key: 'testUserId', label: 'Test {display_name} as', type: 'text', default: 'Builderman' },
+    ],
+    init: () => ({ lastFired: -999, flashUntil: 0, lastMessage: '' }),
+    step(state, ins, params, t) {
+      const v = ins.in || 0;
+      if (v > 0 && (t - state.lastFired) >= 1.0) {
+        state.lastFired = t;
+        state.lastMessage = String(params.message)
+          .replace(/\{num\}/g, Math.round(v * 100) / 100)
+          .replace(/\{display_name\}/g, params.testUserId || '');
+        state.flashUntil = t + 1.5;
+      }
+      return { _display: { flashing: t < state.flashUntil, message: state.lastMessage } };
+    },
+  },
+
+  donator: {
+    name: 'Donator', category: 'structures', color: '#9b59b6', w: 200, h: 160, price: 3000,
+    note: 'An ATM-style structure: the owner sets a fixed donation amount, and any player can donate it to them. Outputs the donor\u2019s user ID the instant a donation happens. An Interactor wired into SET AMT can change the configured amount remotely.',
+    ports: ports(['setAmount', 'SET AMT', 'in'], ['out', 'OUT', 'out']),
+    params: [{ key: 'amount', label: 'Donation Amount ($)', type: 'number', default: 5, min: 1 }],
+    control: { type: 'donator' },
+    init: () => ({ amount: null, pulseUntil: 0, pulseValue: 0 }),
+    step(state, ins, params, t) {
+      if ((ins.setAmount || 0) > 0) state.amount = ins.setAmount;
+      return { out: t < state.pulseUntil ? state.pulseValue : 0 };
+    },
+  },
+
+  securityCameraDisplay: {
+    name: 'Security Camera Display', category: 'structures', color: '#9b59b6', w: 220, h: 150, price: 10000,
+    note: 'A display made for rendering security cameras, manually toggled on by the user. A live camera feed can\u2019t be rendered in this 2D web tool, so it\u2019s shown as a placeholder when powered on.',
+    ports: ports(),
+    control: { type: 'toggle', label: 'POWER' },
+    init: () => ({ on: false }),
+    step(state) { return { _display: { on: state.on } }; },
+  },
+
   // -------------------------------------------------------------------- OTHER
   wirelessTransmitter: {
-    name: 'Wireless Transmitter', category: 'other', color: '#777', w: 160, h: 90,
-    note: 'Broadcasts its input signal on a channel number, to be picked up by a matching Wireless Receiver anywhere on the canvas — no physical wire needed.',
+    name: 'Transmitter', category: 'other', color: '#777', w: 180, h: 100, price: 850,
+    note: 'Wirelessly sends the inputted signal to any Receiver sharing the same keyphrase \u2014 no physical wire needed between them.',
     ports: ports(['in', 'IN', 'in']),
-    params: [{ key: 'channel', label: 'Channel', type: 'number', default: 1, min: 1, max: 999 }],
+    params: [{ key: 'keyphrase', label: 'Keyphrase', type: 'text', default: 'channel1' }],
     step(state, ins, params, t, dt, globalState) {
       globalState.channels = globalState.channels || {};
-      globalState.channels[params.channel] = ins.in || 0;
+      globalState.channels[params.keyphrase] = ins.in || 0;
       return {};
     },
   },
 
   wirelessReceiver: {
-    name: 'Wireless Receiver', category: 'other', color: '#777', w: 160, h: 90,
-    note: 'Outputs whatever value is currently being broadcast on the matching channel by a Wireless Transmitter.',
+    name: 'Receiver', category: 'other', color: '#777', w: 180, h: 100, price: 850,
+    note: 'Wirelessly obtains a signal from any Transmitter sharing the same keyphrase, and outputs it.',
     ports: ports(['out', 'OUT', 'out']),
-    params: [{ key: 'channel', label: 'Channel', type: 'number', default: 1, min: 1, max: 999 }],
+    params: [{ key: 'keyphrase', label: 'Keyphrase', type: 'text', default: 'channel1' }],
     step(state, ins, params, t, dt, globalState) {
-      const v = (globalState.channels || {})[params.channel] || 0;
+      const v = (globalState.channels || {})[params.keyphrase] || 0;
       return { out: v };
     },
   },
 
   memoryCell: {
-    name: 'Memory Cell', category: 'other', color: '#777', w: 170, h: 110,
-    note: 'Stores the DATA input value when WRITE goes high (rising edge), and continuously outputs the last stored value — a 1-register memory.',
-    ports: ports(['data', 'DATA', 'in'], ['write', 'WRITE', 'in'], ['out', 'OUT', 'out']),
-    init: () => ({ stored: 0, wasWriting: false }),
-    step(state, ins) {
-      const writing = (ins.write || 0) > 0;
-      if (writing && !state.wasWriting) state.stored = ins.data || 0;
-      state.wasWriting = writing;
+    name: 'Memory Cell', category: 'other', color: '#777', w: 170, h: 120, price: 275,
+    note: 'Holds whatever signal is provided on the left (DATA) input \u2014 once it captures a nonzero value it ignores further changes until RESET (right input) clears it back to 0. If DATA and RESET both fire on the same tick from the same source, whichever wire was connected first is processed first, matching the in-game execution order.',
+    ports: ports(['data', 'DATA', 'in'], ['reset', 'RESET', 'in'], ['out', 'OUT', 'out']),
+    init: () => ({ stored: 0, hasValue: false, wasData: false, wasReset: false }),
+    step(state, ins, params, t, dt, globalState, portOrder) {
+      const dataActive = (ins.data || 0) > 0;
+      const resetActive = (ins.reset || 0) > 0;
+      const dataEdge = dataActive && !state.wasData;
+      const resetEdge = resetActive && !state.wasReset;
+      const order = (portOrder && portOrder.length) ? portOrder : ['data', 'reset'];
+      order.forEach((portId) => {
+        if (portId === 'reset' && resetEdge) { state.stored = 0; state.hasValue = false; }
+        else if (portId === 'data' && dataEdge && !state.hasValue) { state.stored = ins.data || 0; state.hasValue = true; }
+      });
+      state.wasData = dataActive;
+      state.wasReset = resetActive;
       return { out: state.stored };
     },
   },
 
   tether: {
-    name: 'Tether', category: 'other', color: '#777', w: 100, h: 70,
-    note: 'Pure passthrough used to organize wire runs — output always equals input, exact in-game behavior.',
+    name: 'Tether', category: 'other', color: '#777', w: 100, h: 80, price: 87,
+    note: 'A way to organize your wires \u2014 acts as a passthrough, with a very slight (one-tick) delay, exactly like in-game.',
     ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
-    step(state, ins) { return { out: ins.in || 0 }; },
+    init: () => ({ prev: 0 }),
+    step(state, ins) {
+      const out = state.prev;
+      state.prev = ins.in || 0;
+      return { out };
+    },
   },
 
   interactor: {
-    name: 'Interactor', category: 'other', color: '#777', w: 140, h: 90,
-    note: 'Lights up (enables interaction) while its input is greater than 0 — represents enabling/disabling player interaction on an object.',
-    ports: ports(['in', 'IN', 'in']),
-    step(state, ins) { return { _display: { on: (ins.in || 0) > 0 } }; },
+    name: 'Interactor', category: 'other', color: '#777', w: 160, h: 110, price: 50,
+    note: 'Interacts with objects/structures in its selected region. It activates a single time whenever its input signal changes value (not continuously), forwarding that new value \u2014 e.g. 0/2/8/10 to flip a conveyor\u2019s direction, 10/15/20 to respawn/change/despawn a vehicle, or a changing value to control an Elevator\u2019s extension.',
+    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
+    init: () => ({ lastValue: null, flashUntil: 0 }),
+    step(state, ins, params, t) {
+      const v = ins.in || 0;
+      let pulse = 0;
+      const changed = state.lastValue === null || v !== state.lastValue;
+      if (changed) { pulse = v; state.flashUntil = t + 0.3; }
+      state.lastValue = v;
+      return { out: pulse, _display: { sentValue: v, flashing: t < state.flashUntil } };
+    },
   },
 
   collider: {
-    name: 'Collider', category: 'other', color: '#777', w: 140, h: 90,
-    note: 'Emits a pulse of 10 when a "collision" is triggered — simulated here with a manual trigger button (in-game it fires on physical contact).',
-    ports: ports(['out', 'OUT', 'out']),
-    control: { type: 'momentary', label: 'COLLIDE' },
-    init: () => ({ pressed: false }),
-    step(state) { return { out: state.pressed ? 10 : 0 }; },
+    name: 'Collider', category: 'other', color: '#777', w: 160, h: 100, price: 420,
+    note: 'Enables and disables collisions with filled schematics, privacy glass, vehicle/trailer pads, and spawn pads in its region. Modeled here as: input greater than 0 disables collisions (best-effort \u2014 the exact on/off direction isn\u2019t documented in detail).',
+    ports: ports(['in', 'IN', 'in']),
+    step(state, ins) { return { _display: { collisionsEnabled: (ins.in || 0) === 0 } }; },
   },
 
   redLaser: {
-    name: 'Red Laser', category: 'other', color: '#777', w: 140, h: 90,
-    note: 'Continuously emits a beam. Toggle "block" to simulate something interrupting the beam, which a paired Laser Receiver will detect.',
+    name: 'Red Laser', category: 'other', color: '#777', w: 170, h: 120, price: 900,
+    note: 'Outputs 10.0 if the beam hits an object, 5.0 if it hits a player, 0 if it hits nothing. Reflects off Privacy Glass up to 5 times. Physical beam hit-detection is simulated with a manual selector.',
     ports: ports(['out', 'OUT', 'out']),
-    control: { type: 'toggle', label: 'BLOCK BEAM', inverted: true },
-    init: () => ({ on: false }), // on = blocked
-    step(state, ins, params, t, dt, globalState) {
-      globalState.laserBlocked = state.on;
-      return { out: state.on ? 0 : 10 };
+    control: { type: 'select', label: 'Beam is hitting', options: [['none', 'Nothing (0)'], ['object', 'An object (10)'], ['player', 'A player (5)']] },
+    init: () => ({ value: 'none' }),
+    step(state) {
+      const map = { none: 0, object: 10, player: 5 };
+      return { out: map[state.value] ?? 0 };
     },
   },
 
   laserReceiver: {
-    name: 'Laser Receiver', category: 'other', color: '#777', w: 150, h: 90,
-    note: 'Outputs 10 normally; drops to 0 when the beam is blocked. Connect a wire from a Red Laser to see this react.',
+    name: 'Laser Receiver', category: 'other', color: '#777', w: 160, h: 100, price: 400,
+    note: 'Activates an output of 10.0 the moment a laser hits it. Wire a Red Laser or Material Laser into it to test that interaction here.',
     ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) { return { out: (ins.in || 0) > 0 ? 10 : 0 }; },
   },
 
   materialLaser: {
-    name: 'Material Laser', category: 'other', color: '#777', w: 150, h: 90,
-    note: 'Fires a cutting beam when input is active; outputs a confirmation pulse equal to the input (logic-side passthrough; physical cutting not simulated).',
-    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
-    step(state, ins) { return { out: ins.in || 0 }; },
+    name: 'Material Laser', category: 'other', color: '#777', w: 170, h: 120, price: 900,
+    note: 'Assign a material by touching it to the schematic input in-game; outputs 10.0 whenever the beam hits that assigned material. Physical hit-detection is simulated with a manual toggle here.',
+    ports: ports(['out', 'OUT', 'out']),
+    params: [{ key: 'material', label: 'Assigned Material', type: 'text', default: 'Wood' }],
+    control: { type: 'toggle', label: 'HITTING MATERIAL' },
+    init: () => ({ on: false }),
+    step(state) { return { out: state.on ? 10 : 0 }; },
   },
 
   ownershipManager: {
-    name: 'Ownership Manager', category: 'other', color: '#777', w: 160, h: 90,
-    note: 'Outputs 10 if the property owner is currently online, else 0. Simulated with a manual toggle.',
-    ports: ports(['out', 'OUT', 'out']),
-    control: { type: 'toggle', label: 'OWNER ONLINE' },
-    init: () => ({ on: true }),
-    step(state) { return { out: state.on ? 10 : 0 }; },
+    name: 'Ownership Manager', category: 'other', color: '#777', w: 180, h: 110, price: 50,
+    note: 'Lets you clear or transfer ownership of items you own. A power input of exactly 10.0 clears ownership; any other positive value is treated as a user ID and transfers ownership to that player.',
+    ports: ports(['in', 'POWER', 'in']),
+    init: () => ({ owner: null }),
+    step(state, ins) {
+      const v = ins.in || 0;
+      if (v === 10) state.owner = null;
+      else if (v > 0) state.owner = Math.round(v);
+      return { _display: { owner: state.owner } };
+    },
   },
 
   // --------------------------------------------------------------- CONVEYORS
   fourWayConveyor: {
-    name: '4-Way Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 120,
-    note: 'Each of the 4 directional inputs lights its lamp when active, simulating which direction the conveyor is currently routed to. Physical material movement is not simulated.',
+    name: '4-Way Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 120, price: null,
+    note: 'Each of the 4 directional inputs lights its lamp when active, showing which way the conveyor is currently routed (physical material movement isn\u2019t simulated here).',
     ports: ports(['n', 'N', 'in'], ['e', 'E', 'in'], ['s', 'S', 'in'], ['w', 'W', 'in']),
     step(state, ins) {
       return { _display: { n: (ins.n || 0) > 0, e: (ins.e || 0) > 0, s: (ins.s || 0) > 0, w: (ins.w || 0) > 0 } };
@@ -523,8 +685,8 @@ const COMPONENT_TYPES = {
   },
 
   filterConveyor: {
-    name: 'Filter Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 100,
-    note: 'Lamp lights when ENABLE is active, representing the filter passing material of the selected type. Material sorting itself is not simulated.',
+    name: 'Filter Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 110, price: null,
+    note: 'Lamp lights when ENABLE is active, representing the filter passing the selected material type (material sorting itself isn\u2019t simulated here).',
     ports: ports(['enable', 'ENABLE', 'in']),
     control: { type: 'select', label: 'Material', options: [['wood', 'Wood'], ['stone', 'Stone'], ['ore', 'Ore'], ['any', 'Any']] },
     init: () => ({ value: 'any' }),
@@ -532,8 +694,8 @@ const COMPONENT_TYPES = {
   },
 
   alignmentConveyor: {
-    name: 'Alignment Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 100,
-    note: 'Lamp lights when ENABLE is active, representing the conveyor aligning items. Physical alignment is not simulated.',
+    name: 'Alignment Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 100, price: null,
+    note: 'Lamp lights when ENABLE is active, representing the conveyor aligning items (physical alignment isn\u2019t simulated here).',
     ports: ports(['enable', 'ENABLE', 'in']),
     step(state, ins) { return { _display: { on: (ins.enable || 0) > 0 } }; },
   },
@@ -544,8 +706,8 @@ const COMPONENT_TYPES = {
 const PALETTE_ORDER = {
   inputs: ['button', 'switch_', 'pressurePad', 'slider', 'joystick', 'lock', 'daylightSensor', 'proximitySensor', 'weatherSensor', 'commander'],
   gates: ['andGate', 'orGate', 'xandGate', 'xorGate', 'notGate', 'greaterThanGate', 'binaryInput', 'binaryOutput'],
-  processors: ['calculator', 'sustainer', 'relay', 'blocker', 'zeroTick', 'numberInterface', 'delay', 'frequencyClock', 'randomizer'],
-  structures: ['privacyGlass', 'lcd', 'sevenSegment', 'fourteenSegment', 'electronicBillboard', 'musicNote'],
+  processors: ['calculator', 'sustainer', 'incrementor', 'relay', 'blocker', 'zeroTick', 'numberInterface', 'delay', 'frequency', 'hertzClock', 'randomizer', 'signalLock', 'tFlipFlop', 'numberSplitter', 'numberCombiner'],
+  structures: ['privacyGlass', 'lcd', 'bulbPoweredLights', 'sevenSegment', 'fourteenSegment', 'electronicBillboard', 'musicNote', 'speaker', 'donator', 'securityCameraDisplay'],
   other: ['wirelessTransmitter', 'wirelessReceiver', 'memoryCell', 'tether', 'interactor', 'collider', 'redLaser', 'laserReceiver', 'materialLaser', 'ownershipManager'],
   conveyors: ['fourWayConveyor', 'filterConveyor', 'alignmentConveyor'],
 };
@@ -555,4 +717,5 @@ if (typeof window !== 'undefined') {
   window.COMPONENT_TYPES = COMPONENT_TYPES;
   window.CATEGORIES = CATEGORIES;
   window.PALETTE_ORDER = PALETTE_ORDER;
+  window.SHOP_INFO = SHOP_INFO;
 }

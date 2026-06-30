@@ -57,7 +57,12 @@ class Graph {
       w.from.node === fromNode && w.from.port === fromPort && w.to.node === toNode && w.to.port === toPort);
     if (dup) return dup;
     const id = this.newId('w');
-    const wire = { id, from: { node: fromNode, port: fromPort }, to: { node: toNode, port: toPort }, color: color || '#e0a030' };
+    this._wireSeq = (this._wireSeq || 0) + 1;
+    const wire = {
+      id, seq: this._wireSeq,
+      from: { node: fromNode, port: fromPort }, to: { node: toNode, port: toPort },
+      color: color || '#e0a030', anchors: [],
+    };
     this.wires[id] = wire;
     const node = this.nodes[toNode];
     if (node) {
@@ -100,14 +105,26 @@ class Graph {
     for (const node of Object.values(this.nodes)) {
       const def = COMPONENT_TYPES[node.type];
       const ins = {};
-      def.ports.filter((p) => p.dir === 'in').forEach((p) => { ins[p.id] = this.resolveInput(node.id, p.id); });
-      resolved[node.id] = ins;
+      const orderable = [];
+      def.ports.filter((p) => p.dir === 'in').forEach((p) => {
+        const wires = this.wiresIntoPort(node.id, p.id);
+        const w = wires[0]; // highest priority wire wins the VALUE
+        if (w) {
+          const src = this.nodes[w.from.node];
+          ins[p.id] = src ? (src.outputs[w.from.port] || 0) : 0;
+          orderable.push({ portId: p.id, seq: w.seq || 0 }); // earliest-connected wire = processed first
+        } else {
+          ins[p.id] = 0;
+        }
+      });
+      orderable.sort((a, b) => a.seq - b.seq);
+      resolved[node.id] = { ins, order: orderable.map((o) => o.portId) };
     }
     for (const node of Object.values(this.nodes)) {
       const def = COMPONENT_TYPES[node.type];
       let result = {};
       try {
-        result = def.step(node.state, resolved[node.id], node.params, t, dt, this.global) || {};
+        result = def.step(node.state, resolved[node.id].ins, node.params, t, dt, this.global, resolved[node.id].order) || {};
       } catch (e) {
         console.error('Error stepping node', node.id, node.type, e);
       }
@@ -115,7 +132,7 @@ class Graph {
       def.ports.filter((p) => p.dir === 'out').forEach((p) => { newOutputs[p.id] = result[p.id] ?? 0; });
       node.outputs = newOutputs;
       node.display = result._display || null;
-      node.lastInputs = resolved[node.id];
+      node.lastInputs = resolved[node.id].ins;
     }
   }
 
@@ -126,7 +143,9 @@ class Graph {
         controlState: extractControlState(n),
         inputPriority: n.inputPriority,
       })),
-      wires: Object.values(this.wires).map((w) => ({ id: w.id, from: w.from, to: w.to, color: w.color })),
+      wires: Object.values(this.wires).map((w) => ({
+        id: w.id, seq: w.seq, from: w.from, to: w.to, color: w.color, anchors: w.anchors || [],
+      })),
     };
   }
 
@@ -136,13 +155,15 @@ class Graph {
       const node = g.addNode(n.type, n.x, n.y, { id: n.id, params: n.params, inputPriority: n.inputPriority });
       Object.assign(node.state, n.controlState || {});
     });
-    (data.wires || []).forEach((w) => {
-      g.wires[w.id] = { id: w.id, from: w.from, to: w.to, color: w.color };
+    (data.wires || []).forEach((w, i) => {
+      g.wires[w.id] = { id: w.id, seq: w.seq ?? (i + 1), from: w.from, to: w.to, color: w.color, anchors: w.anchors || [] };
     });
-    let maxN = 0;
+    let maxN = 0, maxSeq = 0;
     Object.keys(g.nodes).forEach((id) => { const m = /^n(\d+)$/.exec(id); if (m) maxN = Math.max(maxN, +m[1]); });
     Object.keys(g.wires).forEach((id) => { const m = /^w(\d+)$/.exec(id); if (m) maxN = Math.max(maxN, +m[1]); });
+    Object.values(g.wires).forEach((w) => { maxSeq = Math.max(maxSeq, w.seq || 0); });
     g._nextId = maxN + 1;
+    g._wireSeq = maxSeq;
     return g;
   }
 }

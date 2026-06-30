@@ -33,7 +33,7 @@ button { font-family: inherit; cursor: pointer; }
 #topbar button:hover { border-color: var(--accent); }
 #topbar button.primary { background: var(--accent); color: #08222d; border-color: var(--accent); font-weight: 600; }
 #topbar button.danger:hover { border-color: var(--red); color: var(--red); }
-#topbar .spacer { flex: 1; }
+.spacer { flex: 1; }
 #topbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
 #tickRateLabel { font-size: 12px; color: var(--text-dim); }
 
@@ -60,12 +60,31 @@ button { font-family: inherit; cursor: pointer; }
 .palette-item:hover { background: var(--panel2); border-color: var(--border); }
 .palette-item .swatch { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
 .palette-item .pname { flex: 1; }
+.palette-item .pprice { font-size: 10px; color: var(--text-dim); font-family: monospace; flex: 0 0 auto; }
 .palette-item .info-icon {
   width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--text-dim);
   color: var(--text-dim); font-size: 11px; display: flex; align-items: center; justify-content: center;
   flex: 0 0 auto;
 }
 .palette-item .info-icon:hover { color: var(--accent); border-color: var(--accent); }
+
+#costSummary {
+  margin: 10px 8px 4px; padding: 10px; background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 8px; font-size: 12px;
+}
+#costSummary .cost-title { font-weight: 700; color: var(--accent2); margin-bottom: 6px; }
+#costSummary .cost-rows { max-height: 160px; overflow-y: auto; margin-bottom: 6px; }
+#costSummary .cost-row { display: flex; justify-content: space-between; padding: 2px 0; color: var(--text-dim); }
+#costSummary .cost-row span:last-child { font-family: monospace; color: var(--text); }
+#costSummary .cost-empty { color: var(--text-dim); font-style: italic; }
+#costSummary .cost-total { display: flex; justify-content: space-between; font-weight: 700; border-top: 1px solid var(--border); padding-top: 6px; }
+#costSummary .cost-total span:last-child { color: var(--green); font-family: monospace; }
+#costSummary .cost-note { font-size: 10px; color: var(--text-dim); margin-top: 4px; font-style: italic; }
+#costSummary .cost-shop { font-size: 11px; color: var(--text-dim); margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 6px; line-height: 1.4; }
+#costSummary .cost-shop b { color: var(--accent); }
+
+.node.multi-selected { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(224,160,48,0.5), 0 3px 10px rgba(0,0,0,0.4); }
+.port.active { background: var(--green); border-color: var(--green); box-shadow: 0 0 6px var(--green); }
 
 /* ---------------- Canvas / workspace ---------------- */
 #workspace-wrap { flex: 1; position: relative; overflow: auto; background: var(--bg); }
@@ -87,9 +106,10 @@ button { font-family: inherit; cursor: pointer; }
 .node {
   position: absolute; background: var(--panel2); border: 2px solid var(--border);
   border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.4); user-select: none;
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; height: auto;
 }
 .node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,184,232,0.4), 0 3px 10px rgba(0,0,0,0.4); }
+.node.multi-selected { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(224,160,48,0.45), 0 3px 10px rgba(0,0,0,0.4); }
 .node-header {
   display: flex; align-items: center; gap: 6px; padding: 5px 8px; cursor: grab;
   border-bottom: 1px solid var(--border); border-radius: 8px 8px 0 0; font-size: 12px; font-weight: 700;
@@ -101,7 +121,10 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text-dim); font-size: 13px; display: flex; align-items: center; justify-content: center;
 }
 .node-header .nbtn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-.node-body { flex: 1; position: relative; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.node-body {
+  flex: 1; position: relative; padding: 10px 8px 18px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; min-height: 36px;
+}
 
 /* ports */
 .port {
@@ -139,6 +162,27 @@ button { font-family: inherit; cursor: pointer; }
   width: 90%; background: #1d1f26; border: 1px solid var(--border); color: var(--text);
   border-radius: 5px; padding: 4px 6px; font-size: 12px;
 }
+
+/* Number Interface — redesigned to look like a deliberate constant-value source */
+.ctrl-numiface { width: 94%; background: #1d1f26; border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.numiface-label { font-size: 10px; letter-spacing: .08em; color: var(--accent2); font-weight: 700; }
+.numiface-row { display: flex; align-items: center; gap: 6px; width: 100%; }
+.numiface-step { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border); background: #3a3f4c; color: var(--text); font-weight: 700; flex: 0 0 auto; }
+.numiface-step:hover { border-color: var(--accent); }
+.numiface-input { flex: 1; min-width: 0; text-align: center; background: #06140a; color: var(--green); border: 1px solid #224; border-radius: 5px; padding: 5px 2px; font-family: 'Consolas', monospace; font-size: 16px; font-weight: 700; }
+
+/* Donator */
+.donator-box { width: 94%; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.donator-amount { font-size: 13px; font-weight: 700; color: var(--accent2); background: #1d1f26; border-radius: 6px; padding: 5px 8px; width: 100%; text-align: center; }
+
+/* Interactor */
+.interactor-box { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+/* Generic inline param editors (Delay seconds, Sustainer duration, channel #, message text, etc.) */
+.param-field { width: 92%; display: flex; flex-direction: column; gap: 2px; }
+.param-field label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+.param-field input { width: 100%; background: #1d1f26; border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 4px 6px; font-size: 12px; }
+.param-field input:focus { border-color: var(--accent); outline: none; }
 .ctrl-joystick {
   width: 70px; height: 70px; border-radius: 50%; background: #1d1f26; border: 1px solid var(--border);
   position: relative; touch-action: none;
@@ -217,11 +261,54 @@ button { font-family: inherit; cursor: pointer; }
 .modal button { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 14px; }
 .modal button.primary { background: var(--accent); color: #08222d; border-color: var(--accent); font-weight: 700; }
 
+/* ---------------- Cost summary ---------------- */
+.cost-table { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.cost-row { display: grid; grid-template-columns: 2fr 0.6fr 1fr 1fr; gap: 6px; align-items: center; padding: 6px 10px; font-size: 13px; border-bottom: 1px solid var(--border); }
+.cost-row:last-child { border-bottom: none; }
+.cost-row.cost-header { background: var(--panel2); font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+.cost-qty { color: var(--text-dim); }
+.cost-unit { display: flex; align-items: center; gap: 2px; }
+.cost-price-input { width: 70px; background: #1d1f26; border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 3px 5px; font-size: 12px; }
+.cost-subtotal { font-weight: 700; color: var(--green); text-align: right; }
+.cost-grand-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px; margin-top: 8px; background: var(--panel2); border-radius: 8px; font-size: 15px; }
+.cost-grand-row #costTotal { font-weight: 800; color: var(--accent2); font-size: 18px; }
+
 /* ---------------- Misc ---------------- */
 #statusbar {
   flex: 0 0 auto; background: var(--panel); border-top: 1px solid var(--border); color: var(--text-dim);
-  font-size: 11px; padding: 4px 10px; display: flex; gap: 16px;
+  font-size: 11px; padding: 4px 10px; display: flex; gap: 16px; align-items: center;
 }
+#statusbar .spacer { flex: 1; }
+#statusbar b { color: var(--accent2); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
+
+/* ---------------- LCD / Bulb light array ---------------- */
+.light-array {
+  display: flex; gap: 3px; padding: 4px; background: #0a0c10; border-radius: 6px;
+  border: 1px solid #1e2230; flex-wrap: wrap; justify-content: center; max-width: 96%;
+}
+.light-cell {
+  width: 14px; height: 14px; border-radius: 3px; background: #1a1d24;
+  border: 1px solid #2a2e38; transition: background .05s;
+}
+.light-array.round .light-cell { border-radius: 50%; width: 16px; height: 16px; }
+.light-cell.on { background: var(--green); border-color: var(--green); box-shadow: 0 0 5px var(--green); }
+
+/* ---------------- Inspector price tag ---------------- */
+.insp-price {
+  font-size: 12px; color: var(--text-dim); background: var(--panel2); border-radius: 6px;
+  padding: 6px 8px; margin-top: 8px; display: flex; align-items: center; gap: 5px;
+}
+.insp-price b { color: var(--accent2); }
+
+/* ---------------- Speaker display ---------------- */
+.speaker-msg {
+  font-size: 12px; background: #06090f; color: #4fd1ff; border: 1px solid #1c2733;
+  border-radius: 6px; padding: 5px 8px; width: 92%; text-align: center;
+  min-height: 36px; display: flex; align-items: center; justify-content: center;
+  word-break: break-word; line-height: 1.3;
+}
+.speaker-msg.flashing { color: #fff; border-color: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+.speaker-msg.idle { color: #2a4055; font-style: italic; }
