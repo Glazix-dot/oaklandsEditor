@@ -23,8 +23,8 @@ function check(name, cond) {
   const n1 = g.addNode('numberInterface', 0, 0); n1.state.value = 10;
   const n2 = g.addNode('numberInterface', 0, 100); n2.state.value = 10;
   const and = g.addNode('andGate', 200, 0);
-  g.addWire(n1.id, 'out', and.id, 'in1');
-  g.addWire(n2.id, 'out', and.id, 'in2');
+  g.addWire(n1.id, 'out', and.id, 'x');
+  g.addWire(n2.id, 'out', and.id, 'y');
   for (let i = 0; i < 3; i++) g.tick(0.05);
   check('AND gate: equal nonzero -> that value', and.outputs.out === 10);
   n2.state.value = 5;
@@ -41,8 +41,8 @@ function check(name, cond) {
   const n1 = g.addNode('numberInterface', 0, 0); n1.state.value = 7;
   const n2 = g.addNode('numberInterface', 0, 100); n2.state.value = 3;
   const or = g.addNode('orGate', 200, 0);
-  g.addWire(n1.id, 'out', or.id, 'in1');
-  g.addWire(n2.id, 'out', or.id, 'in2');
+  g.addWire(n1.id, 'out', or.id, 'x');
+  g.addWire(n2.id, 'out', or.id, 'y');
   for (let i = 0; i < 3; i++) g.tick(0.05);
   check('OR gate: outputs highest (7)', or.outputs.out === 7);
 }
@@ -52,7 +52,7 @@ function check(name, cond) {
   const g = new Graph();
   const sw = g.addNode('switch_', 0, 0);
   const not = g.addNode('notGate', 200, 0);
-  g.addWire(sw.id, 'out', not.id, 'in');
+  g.addWire(sw.id, 'out', not.id, 'x');
   for (let i = 0; i < 3; i++) g.tick(0.05);
   check('NOT: off -> 10', not.outputs.out === 10);
   sw.state.on = true;
@@ -66,8 +66,8 @@ function check(name, cond) {
   const s1 = g.addNode('switch_', 0, 0); s1.state.on = true;
   const s2 = g.addNode('switch_', 0, 100); s2.state.on = true;
   const xor = g.addNode('xorGate', 200, 0);
-  g.addWire(s1.id, 'out', xor.id, 'in1');
-  g.addWire(s2.id, 'out', xor.id, 'in2');
+  g.addWire(s1.id, 'out', xor.id, 'x');
+  g.addWire(s2.id, 'out', xor.id, 'y');
   for (let i = 0; i < 3; i++) g.tick(0.05);
   check('XOR: both on -> 0', xor.outputs.out === 0);
   s2.state.on = false;
@@ -81,8 +81,8 @@ function check(name, cond) {
   const n1 = g.addNode('numberInterface', 0, 0); n1.state.value = 0;
   const n2 = g.addNode('numberInterface', 0, 100); n2.state.value = 0;
   const xand = g.addNode('xandGate', 200, 0);
-  g.addWire(n1.id, 'out', xand.id, 'in1');
-  g.addWire(n2.id, 'out', xand.id, 'in2');
+  g.addWire(n1.id, 'out', xand.id, 'x');
+  g.addWire(n2.id, 'out', xand.id, 'y');
   for (let i = 0; i < 3; i++) g.tick(0.05);
   check('XAND: both 0 -> 10', xand.outputs.out === 10);
   n1.state.value = 10;
@@ -93,19 +93,19 @@ function check(name, cond) {
   check('XAND: equal nonzero -> that value', xand.outputs.out === 10);
 }
 
-// ---- Greater Than Gate ----
+// ---- Greater Than Gate (equation: Y > X, output = Y) ----
 {
   const g = new Graph();
-  const a = g.addNode('numberInterface', 0, 0); a.state.value = 8;
-  const b = g.addNode('numberInterface', 0, 100); b.state.value = 3;
+  const yNode = g.addNode('numberInterface', 0, 0); yNode.state.value = 8;
+  const xNode = g.addNode('numberInterface', 0, 100); xNode.state.value = 3;
   const gt = g.addNode('greaterThanGate', 200, 0);
-  g.addWire(a.id, 'out', gt.id, 'in1');
-  g.addWire(b.id, 'out', gt.id, 'in2');
+  g.addWire(yNode.id, 'out', gt.id, 'y');
+  g.addWire(xNode.id, 'out', gt.id, 'x');
   for (let i = 0; i < 3; i++) g.tick(0.05);
-  check('GreaterThan: A>B -> A value', gt.outputs.out === 8);
-  a.state.value = 2;
+  check('GreaterThan: Y>X -> Y value', gt.outputs.out === 8);
+  yNode.state.value = 2;
   for (let i = 0; i < 3; i++) g.tick(0.05);
-  check('GreaterThan: A<B -> 0', gt.outputs.out === 0);
+  check('GreaterThan: Y<X -> 0', gt.outputs.out === 0);
 }
 
 // ---- Binary Input (5-port, weighted) ----
@@ -314,6 +314,7 @@ function check(name, cond) {
   n.state.value = 10; // rising edge
   for (let i = 0; i < 3; i++) g.tick(0.05);
   check('Randomizer: value in [0, 10]', rnd.outputs.out >= 0 && rnd.outputs.out <= 10);
+  check('Randomizer: value is a whole number', Number.isInteger(rnd.outputs.out));
   const v1 = rnd.outputs.out;
   // Value should be stable while input stays high
   for (let i = 0; i < 10; i++) g.tick(0.05);
@@ -350,6 +351,19 @@ function check(name, cond) {
 {
   const missing = Object.entries(COMPONENT_TYPES).filter(([k, v]) => v.price === undefined);
   check('All components have a price field (null is OK, undefined means missing)', missing.length === 0);
+}
+
+// ---- Removed components ----
+{
+  const removed = ['joystick', 'fourWayConveyor', 'filterConveyor', 'alignmentConveyor'];
+  check('Joystick and Conveyors are removed', removed.every((k) => !(k in COMPONENT_TYPES)));
+}
+
+// ---- Gate equations present ----
+{
+  const gateKeys = ['andGate', 'orGate', 'xandGate', 'xorGate', 'notGate', 'greaterThanGate'];
+  check('Every logic gate has an equation field for display', gateKeys.every((k) => typeof COMPONENT_TYPES[k].equation === 'string'));
+  check('Greater Than gate equation reads "Y > X"', COMPONENT_TYPES.greaterThanGate.equation === 'Y > X');
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

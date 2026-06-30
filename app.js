@@ -142,16 +142,23 @@ function hideTooltip() { tooltip.style.display = 'none'; }
 // isn't self-explanatory. Falls back to a sensible generic line otherwise.
 const PORT_DESCRIPTIONS = {
   // Gates
-  'andGate.in1': 'One of the two signals that must match (and both > 0) for this gate to fire.',
-  'andGate.in2': 'The other signal that must match (and both > 0) for this gate to fire.',
-  'orGate.in1': 'The first of two inputs — the highest of the two is output.',
-  'orGate.in2': 'The second of two inputs — the highest of the two is output.',
-  'xandGate.in1': 'Compared against input B — equal values (including both 0) make this fire.',
-  'xandGate.in2': 'Compared against input A — equal values (including both 0) make this fire.',
-  'xorGate.in1': 'Exactly one of A / B being active (not both, not neither) makes this fire.',
-  'xorGate.in2': 'Exactly one of A / B being active (not both, not neither) makes this fire.',
-  'greaterThanGate.in1': 'A — output equals this value if it is greater than B.',
-  'greaterThanGate.in2': 'B — the value A is compared against.',
+  'andGate.x': 'X — compared against Y. Equation: X = Y (and both > 0).',
+  'andGate.y': 'Y — compared against X. Equation: X = Y (and both > 0).',
+  'andGate.out': 'Equals X (which equals Y) whenever the gate fires, otherwise 0.',
+  'orGate.x': 'X — equation: max(X, Y).',
+  'orGate.y': 'Y — equation: max(X, Y).',
+  'orGate.out': 'Equals whichever of X or Y is higher, as long as one is greater than 0.',
+  'xandGate.x': 'X — compared against Y. Equation: X = Y.',
+  'xandGate.y': 'Y — compared against X. Equation: X = Y.',
+  'xandGate.out': 'Equals X when X = Y (or 10 if both are 0), otherwise 0.',
+  'xorGate.x': 'X — equation: X ⊕ Y (exactly one active fires this gate).',
+  'xorGate.y': 'Y — equation: X ⊕ Y (exactly one active fires this gate).',
+  'xorGate.out': '10 when exactly one of X / Y is active, otherwise 0.',
+  'notGate.x': 'X — equation: NOT X.',
+  'notGate.out': '10 when X is 0, otherwise 0.',
+  'greaterThanGate.y': 'Y — equation: Y > X. Output equals Y when true.',
+  'greaterThanGate.x': 'X — equation: Y > X. The value Y is compared against.',
+  'greaterThanGate.out': 'Equals Y whenever Y > X, otherwise 0.',
   // Binary I/O
   'binaryInput.b16': 'Bit with weight 16 — when active adds 16 to the output.',
   'binaryInput.b8':  'Bit with weight 8 — when active adds 8 to the output.',
@@ -200,11 +207,6 @@ const PORT_DESCRIPTIONS = {
   // Wireless
   'wirelessTransmitter.in': 'Whatever arrives here is broadcast on the keyphrase to any Receiver sharing it.',
   'wirelessReceiver.out': 'Mirrors whatever is being broadcast on the matching keyphrase.',
-  // Joystick
-  'joystick.fwd': '0 to 10 based on how far the stick is pushed forward.',
-  'joystick.back': '0 to 10 based on how far the stick is pulled back.',
-  'joystick.left': '0 to 10 based on how far the stick is pushed left.',
-  'joystick.right': '0 to 10 based on how far the stick is pushed right.',
   // Sensors
   'proximitySensor.out': '10 for property owner, 5 for trusted, 1 for untrusted, 0 if nobody within 15 studs.',
   'weatherSensor.out': '1 sunny, 2 cloudy, 3 rain, 4 thunderstorm, 5 aurora borealis, 6 falling star event.',
@@ -231,13 +233,6 @@ const PORT_DESCRIPTIONS = {
   'collider.in': 'While greater than 0, disables collisions in the selected region.',
   'tether.in': 'Signal to pass through (with a very slight one-tick delay, matching the real Tether).',
   'tether.out': 'The input signal, one tick later.',
-  // Conveyors
-  'fourWayConveyor.n': 'Routes material North while active.',
-  'fourWayConveyor.e': 'Routes material East while active.',
-  'fourWayConveyor.s': 'Routes material South while active.',
-  'fourWayConveyor.w': 'Routes material West while active.',
-  'filterConveyor.enable': 'While active, the filter allows the selected material type through.',
-  'alignmentConveyor.enable': 'While active, the conveyor aligns items passing over it.',
 };
 function portDescription(type, p) {
   return PORT_DESCRIPTIONS[`${type}.${p.id}`] || `Carries the ${p.label} value for this component.`;
@@ -519,32 +514,6 @@ function buildControl(node, def, body) {
         wrap.appendChild(valLabel); wrap.appendChild(input); body.appendChild(wrap);
         break;
       }
-      case 'joystick2d': {
-        const pad = document.createElement('div'); pad.className = 'ctrl-joystick';
-        const stick = document.createElement('div'); stick.className = 'stick';
-        pad.appendChild(stick);
-        let dragging = false;
-        const radius = 26;
-        function setFromEvent(ev) {
-          const rect = pad.getBoundingClientRect();
-          const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-          let dx = ev.clientX - cx, dy = ev.clientY - cy;
-          const dist = Math.min(radius, Math.hypot(dx, dy));
-          const ang = Math.atan2(dy, dx);
-          dx = Math.cos(ang) * dist; dy = Math.sin(ang) * dist;
-          stick.style.left = `calc(50% + ${dx}px)`; stick.style.top = `calc(50% + ${dy}px)`;
-          node.state.x = Math.round((dx / radius) * c.max * 100) / 100;
-          node.state.y = Math.round((-dy / radius) * c.max * 100) / 100;
-        }
-        pad.addEventListener('mousedown', (e) => { dragging = true; setFromEvent(e); });
-        window.addEventListener('mousemove', (e) => { if (dragging) setFromEvent(e); });
-        window.addEventListener('mouseup', () => {
-          if (!dragging) return; dragging = false;
-          stick.style.left = '50%'; stick.style.top = '50%'; node.state.x = 0; node.state.y = 0;
-        });
-        body.appendChild(pad);
-        break;
-      }
       case 'select': {
         const sel = document.createElement('select'); sel.className = 'ctrl-select';
         c.options.forEach(([val, label]) => {
@@ -784,7 +753,7 @@ function buildControl(node, def, body) {
       updaters.push(() => { keys.forEach((k, i) => { cells[i].textContent = String((node.outputs && node.outputs[k]) ?? 0); }); });
       break;
     }
-    case 'laserReceiver': case 'materialLaser': case 'filterConveyor': case 'alignmentConveyor': {
+    case 'laserReceiver': case 'materialLaser': {
       const lamp = document.createElement('div'); lamp.className = 'lamp';
       displayEl.appendChild(lamp);
       updaters.push(() => {
@@ -794,24 +763,24 @@ function buildControl(node, def, body) {
       });
       break;
     }
-    case 'fourWayConveyor': {
-      const wrap = document.createElement('div'); wrap.style.display = 'grid'; wrap.style.gridTemplateColumns = 'repeat(3,1fr)'; wrap.style.gap = '3px';
-      const mk = () => { const l = document.createElement('div'); l.className = 'lamp'; l.style.width = '16px'; l.style.height = '16px'; return l; };
-      const blank = () => document.createElement('div');
-      const n = mk(), e = mk(), s = mk(), w = mk();
-      wrap.appendChild(blank()); wrap.appendChild(n); wrap.appendChild(blank());
-      wrap.appendChild(w); wrap.appendChild(blank()); wrap.appendChild(e);
-      wrap.appendChild(blank()); wrap.appendChild(s); wrap.appendChild(blank());
-      displayEl.appendChild(wrap);
+    case 'andGate': case 'orGate': case 'xandGate': case 'xorGate': case 'notGate': case 'greaterThanGate': {
+      // Equation display: shows the gate's formula plus the live values flowing through it.
+      const eqRow = document.createElement('div'); eqRow.className = 'gate-equation';
+      const liveRow = document.createElement('div'); liveRow.className = 'gate-live';
+      const readout = document.createElement('div'); readout.className = 'value-readout';
+      eqRow.textContent = def.equation;
+      displayEl.appendChild(eqRow);
+      displayEl.appendChild(liveRow);
+      displayEl.appendChild(readout);
+      const hasY = def.ports.some((p) => p.id === 'y');
       updaters.push(() => {
-        n.classList.toggle('on', !!(node.display && node.display.n));
-        e.classList.toggle('on', !!(node.display && node.display.e));
-        s.classList.toggle('on', !!(node.display && node.display.s));
-        w.classList.toggle('on', !!(node.display && node.display.w));
+        const x = (node.lastInputs && node.lastInputs.x) ?? 0;
+        const y = hasY ? ((node.lastInputs && node.lastInputs.y) ?? 0) : null;
+        liveRow.textContent = hasY ? `(X=${x}, Y=${y})` : `(X=${x})`;
+        readout.textContent = String(Math.round(((node.outputs && node.outputs.out) || 0) * 100) / 100);
       });
       break;
     }
-    case 'joystick': break; // the 2D pad control is informative enough on its own
     default: {
       // generic readout of the first output, for any component that doesn't have its own custom display above
       const hasOut = def.ports.some((p) => p.dir === 'out');
@@ -1195,8 +1164,8 @@ function deleteNode(id) {
 // PRICES / COST SUMMARY
 // -------------------------------------------------------------------------
 // Every price below comes straight from def.price in components.js (verified
-// against Alan's AutoLogistics). A handful of items (a few conveyors and
-// Privacy Glass) don't have a confirmed price yet and show as "n/a".
+// against Alan's AutoLogistics). Privacy Glass doesn't have a confirmed
+// price yet and shows as "n/a".
 function openCostModal() {
   const counts = {};
   Object.values(graph.nodes).forEach((n) => { counts[n.type] = (counts[n.type] || 0) + 1; });

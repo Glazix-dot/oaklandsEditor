@@ -31,7 +31,6 @@ const CATEGORIES = [
   { id: 'processors', label: 'Processors' },
   { id: 'structures', label: 'Structures (Outputs)' },
   { id: 'other', label: 'Other Devices' },
-  { id: 'conveyors', label: 'Conveyors' },
 ];
 
 function ports(...defs) {
@@ -82,21 +81,6 @@ const COMPONENT_TYPES = {
     control: { type: 'slider', min: 0, max: 10, step: 0.1 },
     init: () => ({ value: 0 }),
     step(state) { return { out: state.value }; },
-  },
-
-  joystick: {
-    name: 'Joystick', category: 'inputs', color: '#d9534f', w: 160, h: 140, price: 1200,
-    note: 'Has four separate output signals (Forward / Back / Left / Right), each going up to 10.0 depending on how far the stick is pushed toward that direction.',
-    ports: ports(['fwd', 'FORWARD', 'out'], ['back', 'BACK', 'out'], ['left', 'LEFT', 'out'], ['right', 'RIGHT', 'out']),
-    control: { type: 'joystick2d', min: -1, max: 1 },
-    init: () => ({ x: 0, y: 0 }),
-    step(state) {
-      const x = state.x || 0, y = state.y || 0;
-      return {
-        fwd: Math.max(0, -y) * 10, back: Math.max(0, y) * 10,
-        left: Math.max(0, -x) * 10, right: Math.max(0, x) * 10,
-      };
-    },
   },
 
   lock: {
@@ -158,60 +142,66 @@ const COMPONENT_TYPES = {
 
   // ------------------------------------------------------------ LOGIC GATES
   andGate: {
-    name: 'AND Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
-    note: 'Activates an output of the two inputs\u2019 shared value when they are greater than 0.0 and equal to each other.',
-    ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
+    name: 'AND Gate', category: 'gates', color: '#5bc0de', w: 130, h: 100, price: 170,
+    note: 'Activates an output equal to X (= Y) when both inputs are greater than 0.0 and equal to each other.',
+    equation: 'X = Y',
+    ports: ports(['x', 'X', 'in'], ['y', 'Y', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
-      const { in1 = 0, in2 = 0 } = ins;
-      return { out: (in1 === in2 && in1 > 0) ? in1 : 0 };
+      const { x = 0, y = 0 } = ins;
+      return { out: (x === y && x > 0) ? x : 0 };
     },
   },
 
   notGate: {
-    name: 'NOT Gate', category: 'gates', color: '#5bc0de', w: 110, h: 80, price: 120,
+    name: 'NOT Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 120,
     note: 'Activates an output of 0.0 when the input is greater than 0.0; otherwise outputs 10.0.',
-    ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
-    step(state, ins) { return { out: (ins.in || 0) > 0 ? 0 : 10 }; },
+    equation: 'NOT X',
+    ports: ports(['x', 'X', 'in'], ['out', 'OUT', 'out']),
+    step(state, ins) { return { out: (ins.x || 0) > 0 ? 0 : 10 }; },
   },
 
   orGate: {
-    name: 'OR Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
-    note: 'Activates the highest output of the two inputs.',
-    ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
+    name: 'OR Gate', category: 'gates', color: '#5bc0de', w: 130, h: 100, price: 170,
+    note: 'Activates the highest value of the two inputs.',
+    equation: 'max(X, Y)',
+    ports: ports(['x', 'X', 'in'], ['y', 'Y', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
-      const { in1 = 0, in2 = 0 } = ins;
-      return { out: Math.max(in1, in2) };
+      const { x = 0, y = 0 } = ins;
+      return { out: Math.max(x, y) };
     },
   },
 
   xorGate: {
-    name: 'XOR Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
+    name: 'XOR Gate', category: 'gates', color: '#5bc0de', w: 130, h: 100, price: 170,
     note: 'Outputs 10.0 when exactly one of the two inputs is active (greater than 0), matching a standard binary XOR truth table.',
-    ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
+    equation: 'X \u2295 Y',
+    ports: ports(['x', 'X', 'in'], ['y', 'Y', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
-      const a = (ins.in1 || 0) > 0, b = (ins.in2 || 0) > 0;
+      const a = (ins.x || 0) > 0, b = (ins.y || 0) > 0;
       return { out: (a !== b) ? 10 : 0 };
     },
   },
 
   xandGate: {
-    name: 'XAND Gate', category: 'gates', color: '#5bc0de', w: 120, h: 90, price: 170,
+    name: 'XAND Gate', category: 'gates', color: '#5bc0de', w: 130, h: 100, price: 170,
     note: 'Similar to the AND Gate, but it also outputs 10.0 when both inputs are equal to 0.0 (an AND Gate + NOT Gate combined).',
-    ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
+    equation: 'X = Y',
+    ports: ports(['x', 'X', 'in'], ['y', 'Y', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
-      const { in1 = 0, in2 = 0 } = ins;
-      if (in1 === in2) return { out: in1 === 0 ? 10 : in1 };
+      const { x = 0, y = 0 } = ins;
+      if (x === y) return { out: x === 0 ? 10 : x };
       return { out: 0 };
     },
   },
 
   greaterThanGate: {
-    name: 'Greater Than Gate', category: 'gates', color: '#5bc0de', w: 140, h: 90, price: 270,
-    note: 'Outputs the left (A) signal\u2019s value if it is greater than the right (B) signal; otherwise outputs 0.',
-    ports: ports(['in1', 'A', 'in'], ['in2', 'B', 'in'], ['out', 'OUT', 'out']),
+    name: 'Greater Than Gate', category: 'gates', color: '#5bc0de', w: 150, h: 100, price: 270,
+    note: 'Outputs Y\u2019s value if Y is greater than X; otherwise outputs 0.',
+    equation: 'Y > X',
+    ports: ports(['y', 'Y', 'in'], ['x', 'X', 'in'], ['out', 'OUT', 'out']),
     step(state, ins) {
-      const { in1 = 0, in2 = 0 } = ins;
-      return { out: in1 > in2 ? in1 : 0 };
+      const { x = 0, y = 0 } = ins;
+      return { out: y > x ? y : 0 };
     },
   },
 
@@ -384,13 +374,16 @@ const COMPONENT_TYPES = {
 
   randomizer: {
     name: 'Randomizer', category: 'processors', color: '#f0ad4e', w: 150, h: 100, price: 260,
-    note: 'Outputs a random signal between 0 and the input value, every time the input changes to a new positive number.',
+    note: 'Outputs a random whole number between 0 and the input value, every time the input changes to a new positive number.',
     ports: ports(['in', 'IN', 'in'], ['out', 'OUT', 'out']),
     init: () => ({ wasActive: false, value: 0 }),
     step(state, ins) {
       const v = ins.in || 0;
       const active = v > 0;
-      if (active && !state.wasActive) state.value = Math.round(Math.random() * v * 100) / 100;
+      if (active && !state.wasActive) {
+        const maxInt = Math.max(0, Math.floor(v));
+        state.value = Math.floor(Math.random() * (maxInt + 1));
+      }
       state.wasActive = active;
       return { out: state.value };
     },
@@ -674,42 +667,15 @@ const COMPONENT_TYPES = {
     },
   },
 
-  // --------------------------------------------------------------- CONVEYORS
-  fourWayConveyor: {
-    name: '4-Way Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 120, price: null,
-    note: 'Each of the 4 directional inputs lights its lamp when active, showing which way the conveyor is currently routed (physical material movement isn\u2019t simulated here).',
-    ports: ports(['n', 'N', 'in'], ['e', 'E', 'in'], ['s', 'S', 'in'], ['w', 'W', 'in']),
-    step(state, ins) {
-      return { _display: { n: (ins.n || 0) > 0, e: (ins.e || 0) > 0, s: (ins.s || 0) > 0, w: (ins.w || 0) > 0 } };
-    },
-  },
-
-  filterConveyor: {
-    name: 'Filter Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 110, price: null,
-    note: 'Lamp lights when ENABLE is active, representing the filter passing the selected material type (material sorting itself isn\u2019t simulated here).',
-    ports: ports(['enable', 'ENABLE', 'in']),
-    control: { type: 'select', label: 'Material', options: [['wood', 'Wood'], ['stone', 'Stone'], ['ore', 'Ore'], ['any', 'Any']] },
-    init: () => ({ value: 'any' }),
-    step(state, ins) { return { _display: { on: (ins.enable || 0) > 0 } }; },
-  },
-
-  alignmentConveyor: {
-    name: 'Alignment Conveyor', category: 'conveyors', color: '#8d6e63', w: 170, h: 100, price: null,
-    note: 'Lamp lights when ENABLE is active, representing the conveyor aligning items (physical alignment isn\u2019t simulated here).',
-    ports: ports(['enable', 'ENABLE', 'in']),
-    step(state, ins) { return { _display: { on: (ins.enable || 0) > 0 } }; },
-  },
-
 };
 
 // Friendly default ordering inside each category (for the palette)
 const PALETTE_ORDER = {
-  inputs: ['button', 'switch_', 'pressurePad', 'slider', 'joystick', 'lock', 'daylightSensor', 'proximitySensor', 'weatherSensor', 'commander'],
+  inputs: ['button', 'switch_', 'pressurePad', 'slider', 'lock', 'daylightSensor', 'proximitySensor', 'weatherSensor', 'commander'],
   gates: ['andGate', 'orGate', 'xandGate', 'xorGate', 'notGate', 'greaterThanGate', 'binaryInput', 'binaryOutput'],
   processors: ['calculator', 'sustainer', 'incrementor', 'relay', 'blocker', 'zeroTick', 'numberInterface', 'delay', 'frequency', 'hertzClock', 'randomizer', 'signalLock', 'tFlipFlop', 'numberSplitter', 'numberCombiner'],
   structures: ['privacyGlass', 'lcd', 'bulbPoweredLights', 'sevenSegment', 'fourteenSegment', 'electronicBillboard', 'musicNote', 'speaker', 'donator', 'securityCameraDisplay'],
   other: ['wirelessTransmitter', 'wirelessReceiver', 'memoryCell', 'tether', 'interactor', 'collider', 'redLaser', 'laserReceiver', 'materialLaser', 'ownershipManager'],
-  conveyors: ['fourWayConveyor', 'filterConveyor', 'alignmentConveyor'],
 };
 
 // Expose for debugging in the browser console (and for automated tests).

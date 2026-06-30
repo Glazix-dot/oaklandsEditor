@@ -55,15 +55,29 @@ const andNode = Object.values(window.graph.nodes).find((n) => n.type === 'andGat
 let wireOk = false;
 try {
   window.handlePortClick(switchNode.id, 'out', 'out');
-  window.handlePortClick(andNode.id, 'in1', 'in');
+  window.handlePortClick(andNode.id, 'x', 'in');
   window.handlePortClick(switchNode.id, 'out', 'out');
-  window.handlePortClick(andNode.id, 'in2', 'in');
+  window.handlePortClick(andNode.id, 'y', 'in');
   wireOk = Object.values(window.graph.wires).filter((w) => w.to.node === andNode.id).length === 2;
 } catch (e) { console.log(e); }
 check('Click-then-click wiring creates wires', wireOk);
 switchNode.state.on = true;
 for (let i = 0; i < 5; i++) window.graph.tick(0.05);
 check('Wired AND gate produces correct live output', andNode.outputs.out === 10);
+
+// ---- Equation display on gate nodes ----
+try {
+  const gtNode = Object.values(window.graph.nodes).find((n) => n.type === 'greaterThanGate');
+  const html = window.nodeEls[gtNode.id].el.innerHTML;
+  check('Greater Than gate node shows its equation (Y > X)', html.includes('Y &gt; X') || html.includes('Y > X'));
+} catch (e) {
+  check('Greater Than gate node shows its equation (Y > X)', false);
+  console.log(e);
+}
+
+// ---- Removed components absent from palette ----
+check('Joystick is not in the palette', !doc.querySelector('.palette-item[data-type="joystick"]'));
+check('Conveyors are not in the palette', !doc.querySelector('.palette-item[data-type="fourWayConveyor"]'));
 
 // ---- Wire anchor (waypoint) ----
 const firstWire = Object.values(window.graph.wires)[0];

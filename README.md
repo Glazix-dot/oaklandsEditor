@@ -6,7 +6,9 @@ Made by **Glazix**.
 
 ## What it does
 
-Everything you'd build with Logic in Oaklands, but on a flat canvas instead of in the world. Buttons, switches, all the gates, the Memory Cell, Incrementer, Calculator, Speaker, Donator, Interactor, lasers, conveyors — the full lineup, 56 components. Each one runs the actual in-game math: AND only fires when both inputs match and are above 0, the Calculator drops negative results instead of outputting them, the Memory Cell latches once and ignores further writes until you reset it, the Incrementer adds input÷10 per pulse. If two of those "event" wires land on a node in the same tick (say, DATA and RESET on a Memory Cell both firing off one button), whichever wire you connected first gets processed first — same as the real execution order.
+Everything you'd build with Logic in Oaklands, but on a flat canvas instead of in the world. Buttons, switches, all the gates, the Memory Cell, Incrementer, Calculator, Speaker, Donator, Interactor, lasers — the full lineup, 52 components. Each one runs the actual in-game math: AND only fires when both inputs match and are above 0, the Calculator drops negative results instead of outputting them, the Memory Cell latches once and ignores further writes until you reset it, the Incrementer adds input÷10 per pulse, the Randomizer only ever spits out whole numbers. If two of those "event" wires land on a node in the same tick (say, DATA and RESET on a Memory Cell both firing off one button), whichever wire you connected first gets processed first — same as the real execution order.
+
+Logic gates show their actual equation right on the node, labeled X and Y instead of the old vague "A/B" — the Greater Than Gate, for instance, reads "Y > X" and outputs Y when it's true. Hover an output port and it tells you exactly which variable it equals.
 
 Wiring works the way you'd expect on a Mac trackpad: click a port, click the other port, done. Dragging works too if you prefer it. You can drop anchor points on a wire to route it around other components, pick the exact wire color, and if a port has more than one wire going into it, a little badge shows up so you can reorder which one actually wins.
 
@@ -20,6 +22,9 @@ Export gives you clean, readable JSON — open it in a text editor and it actual
 
 This was built off the actual Oaklands wiki and verified in-game pricing — not guessed. Every component's info tooltip (the ⓘ icon) tells you straight up whether its behavior is a confirmed match or, for a small number of things that can't really be simulated in a browser (camera feeds, physical laser collision, actual chat messages), the closest reasonable approximation. If something's off, tell me — see contact below.
 
+## Running it
+
+Open `index.html`. That's the whole installation process. No build step, no dependencies, no server. It also runs fine hosted as a static site (GitHub Pages, Netlify, wherever) since it's just HTML/CSS/JS.
 
 ## Files
 
@@ -28,7 +33,7 @@ This was built off the actual Oaklands wiki and verified in-game pricing — not
 - `components.js` — every component: its ports, price, controls, and simulation logic
 - `engine.js` — the simulation engine (wiring, wire priority, the tick loop)
 - `app.js` — everything UI: palette, canvas, wiring, inspector, export/import
-
+- `tests/` — automated test scripts, not needed to actually run the site
 
 Want to add a component yourself? It's one entry in `components.js` — ports, a price, a `step()` function for the logic, optionally a `control` for an interactive widget. It'll show up in the palette automatically.
 
